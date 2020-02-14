@@ -50,7 +50,7 @@ captures/
 
 # Keystore files
 #*.jks
-gradle.properties
+#gradle.properties
 
 
 .DS_Store
