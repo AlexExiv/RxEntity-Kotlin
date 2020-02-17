@@ -8,7 +8,7 @@ import org.junit.Assert.*
 
 data class TestEntity(val id: Int, val value: String): Entity<Int>
 {
-    override val key: Int
+    override val _key: Int
         get() = id
 }
 

@@ -50,7 +50,7 @@ open class EntityCollection<K: Comparable<K>, E: Entity<K>>(val queue: Scheduler
     {
         //assert(queue.operationQueue == OperationQueue.current, "Observable obss collection can be updated only from the specified in the constructor OperationQueue")
 
-        sharedEntities[entity.key] = entity
+        sharedEntities[entity._key] = entity
         items.forEach { it.get()?.update(source = source, entity = entity) }
     }
 
@@ -58,7 +58,7 @@ open class EntityCollection<K: Comparable<K>, E: Entity<K>>(val queue: Scheduler
     {
         //assert(queue.operationQueue == OperationQueue.current, "Observable obss collection can be updated only from the specified in the constructor OperationQueue")
 
-        entities.forEach { sharedEntities[it.key] = it }
+        entities.forEach { sharedEntities[it._key] = it }
         items.forEach { it.get()?.update(source = source, entities = this.sharedEntities) }
     }
 }

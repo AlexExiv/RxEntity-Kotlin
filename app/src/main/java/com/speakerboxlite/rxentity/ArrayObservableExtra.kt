@@ -28,7 +28,7 @@ open class ArrayObservableExtra<K: Comparable<K>, E: Entity<K>, Extra>(holder: E
     {
         //assert( queue.operationQueue == OperationQueue.current, "Single observable can be updated only from the same queue with the parent collection" )
 
-        val i = entities?.indexOfFirst { it.key == entity.key }
+        val i = entities?.indexOfFirst { it._key == entity._key }
         if (i != null && source != uuid)
         {
             val entities = this.entities!!.toMutableList()
@@ -45,9 +45,9 @@ open class ArrayObservableExtra<K: Comparable<K>, E: Entity<K>, Extra>(holder: E
         {
             var was = false
             _entities.forEachIndexed { i, e ->
-                if (entities[e.key] != null)
+                if (entities[e._key] != null)
                 {
-                    _entities[i] = entities[e.key]!!
+                    _entities[i] = entities[e._key]!!
                     was = true
                 }
             }

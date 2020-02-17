@@ -1,7 +1,6 @@
 package com.speakerboxlite.rxentity
 
 import io.reactivex.Observable
-import io.reactivex.ObservableSource
 import io.reactivex.Observer
 import io.reactivex.Scheduler
 import io.reactivex.disposables.Disposable
@@ -22,7 +21,7 @@ open class SingleObservableExtra<K: Comparable<K>, E: Entity<K>, Extra>(holder: 
     {
         //assert( queue.operationQueue == OperationQueue.current, "Single observable can be updated only from the same queue with the parent collection" )
 
-        if (this.entity?.key == entity.key && source != uuid)
+        if (this.entity?._key == entity._key && source != uuid)
         {
             rxPublish.onNext(entity)
         }
@@ -31,7 +30,7 @@ open class SingleObservableExtra<K: Comparable<K>, E: Entity<K>, Extra>(holder: 
     override fun update(source: String, entities: Map<K, E>)
     {
         //assert( queue.operationQueue == OperationQueue.current, "Single observable can be updated only from the same queue with the parent collection" )
-        val key = entity?.key
+        val key = entity?._key
         if (key != null && entities[key] != null && source != uuid)
         {
             rxPublish.onNext(entities[key]!!)
