@@ -76,8 +76,11 @@ open class ArrayObservableExtra<K: Comparable<K>, E: Entity<K>, Extra>(holder: E
     }
 }
 
-typealias ArrayObservableInt<Entity> = ArrayObservableExtra<Int, Entity, EntityCollectionExtraParamsEmpty>
-typealias ArrayObservableString<Entity> = ArrayObservableExtra<String, Entity, EntityCollectionExtraParamsEmpty>
+typealias ArrayObservableExtraInt<Entity, Extra> = ArrayObservableExtra<Int, Entity, Extra>
+typealias ArrayObservableInt<Entity> = ArrayObservableExtraInt<Entity, EntityCollectionExtraParamsEmpty>
+
+typealias ArrayObservableExtraString<Entity, Extra> = ArrayObservableExtra<String, Entity, Extra>
+typealias ArrayObservableString<Entity> = ArrayObservableExtraString<Entity, EntityCollectionExtraParamsEmpty>
 
 fun <K: Comparable<K>, E: Entity<K>, Extra> Observable<Extra>.refresh(to: ArrayObservableExtra<K, E, Extra>, resetCache: Boolean = false)
         = subscribe { to._refresh(resetCache = resetCache, extra = it) }
