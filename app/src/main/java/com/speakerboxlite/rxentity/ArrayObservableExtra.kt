@@ -79,7 +79,5 @@ open class ArrayObservableExtra<K: Comparable<K>, E: Entity<K>, Extra>(holder: E
 typealias ArrayObservableInt<Entity> = ArrayObservableExtra<Int, Entity, EntityCollectionExtraParamsEmpty>
 typealias ArrayObservableString<Entity> = ArrayObservableExtra<String, Entity, EntityCollectionExtraParamsEmpty>
 
-fun <K: Comparable<K>, E: Entity<K>, Extra> Observable<Extra>.refresh(to: ArrayObservableExtra<K, E, Extra>, resetCache: Boolean = false): Disposable
-{
-    return subscribe { to._refresh(resetCache = resetCache, extra = it) }
-}
+fun <K: Comparable<K>, E: Entity<K>, Extra> Observable<Extra>.refresh(to: ArrayObservableExtra<K, E, Extra>, resetCache: Boolean = false)
+        = subscribe { to._refresh(resetCache = resetCache, extra = it) }

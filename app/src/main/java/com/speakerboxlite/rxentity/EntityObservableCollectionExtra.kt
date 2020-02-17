@@ -1,7 +1,9 @@
 package com.speakerboxlite.rxentity
 
+import io.reactivex.Observable
 import io.reactivex.Scheduler
 import io.reactivex.Single
+import io.reactivex.disposables.Disposable
 import java.lang.ref.WeakReference
 
 data class EntityCollectionExtraParamsEmpty(val unused: Int = 0)
@@ -105,7 +107,7 @@ class EntityObservableCollectionExtra<K: Comparable<K>, E: Entity<K>, Collection
             .subscribe())
     }
 
-    protected fun _refresh(resetCache: Boolean = false, collectionExtra: CollectionExtra? = null)
+    fun _refresh(resetCache: Boolean = false, collectionExtra: CollectionExtra? = null)
     {
         this.collectionExtra = collectionExtra ?: this.collectionExtra
         //assert( queue.operationQueue == OperationQueue.current, "_Refresh can be called only from the specified in the constructor OperationQueue" )
@@ -120,3 +122,6 @@ typealias EntityObservableCollectionInt<Entity> = EntityObservableCollectionExtr
 
 typealias EntityObservableCollectionExtraString<Entity, CollectionExtra> = EntityObservableCollectionExtra<String, Entity, CollectionExtra>
 typealias EntityObservableCollectionString<Entity> = EntityObservableCollectionExtraString<Entity, EntityCollectionExtraParamsEmpty>
+
+fun <K: Comparable<K>, E: Entity<K>, CollectionExtra> Observable<CollectionExtra>.refresh(to: EntityObservableCollectionExtra<K, E, CollectionExtra>, resetCache: Boolean = false)
+        = subscribe { to._refresh(resetCache = resetCache, collectionExtra = it) }
