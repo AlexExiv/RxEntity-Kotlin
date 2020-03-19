@@ -27,5 +27,8 @@ open class PaginatorObservableExtra<K: Comparable<K>, E: Entity<K>, Extra>(holde
 typealias PaginatorObservableExtraInt<Entity, Extra> = PaginatorObservableExtra<Int, Entity, Extra>
 typealias PaginatorObservableInt<Entity> = PaginatorObservableExtraInt<Entity, EntityCollectionExtraParamsEmpty>
 
+typealias PaginatorObservableExtraLong<Entity, Extra> = PaginatorObservableExtra<Long, Entity, Extra>
+typealias PaginatorObservableLong<Entity> = PaginatorObservableExtraInt<Entity, EntityCollectionExtraParamsEmpty>
+
 typealias PaginatorObservableExtraString<Entity, Extra> = PaginatorObservableExtra<String, Entity, Extra>
 typealias PaginatorObservableString<Entity> = PaginatorObservableExtraString<Entity, EntityCollectionExtraParamsEmpty>

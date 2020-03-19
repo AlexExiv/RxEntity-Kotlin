@@ -120,6 +120,9 @@ class EntityObservableCollectionExtra<K: Comparable<K>, E: Entity<K>, Collection
 typealias EntityObservableCollectionExtraInt<Entity, CollectionExtra> = EntityObservableCollectionExtra<Int, Entity, CollectionExtra>
 typealias EntityObservableCollectionInt<Entity> = EntityObservableCollectionExtraInt<Entity, EntityCollectionExtraParamsEmpty>
 
+typealias EntityObservableCollectionExtraLong<Entity, CollectionExtra> = EntityObservableCollectionExtra<Long, Entity, CollectionExtra>
+typealias EntityObservableCollectionLong<Entity> = EntityObservableCollectionExtraInt<Entity, EntityCollectionExtraParamsEmpty>
+
 typealias EntityObservableCollectionExtraString<Entity, CollectionExtra> = EntityObservableCollectionExtra<String, Entity, CollectionExtra>
 typealias EntityObservableCollectionString<Entity> = EntityObservableCollectionExtraString<Entity, EntityCollectionExtraParamsEmpty>
 

@@ -55,6 +55,7 @@ open class SingleObservableExtra<K: Comparable<K>, E: Entity<K>, Extra>(holder: 
 }
 
 typealias SingleObservableInt<Entity> = SingleObservableExtra<Int, Entity, EntityCollectionExtraParamsEmpty>
+typealias SingleObservableLong<Entity> = SingleObservableExtra<Long, Entity, EntityCollectionExtraParamsEmpty>
 typealias SingleObservableString<Entity> = SingleObservableExtra<String, Entity, EntityCollectionExtraParamsEmpty>
 
 fun <K: Comparable<K>, E: Entity<K>, Extra> Observable<Extra>.refresh(to: SingleObservableExtra<K, E, Extra>, resetCache: Boolean = false): Disposable

@@ -79,6 +79,9 @@ open class ArrayObservableExtra<K: Comparable<K>, E: Entity<K>, Extra>(holder: E
 typealias ArrayObservableExtraInt<Entity, Extra> = ArrayObservableExtra<Int, Entity, Extra>
 typealias ArrayObservableInt<Entity> = ArrayObservableExtraInt<Entity, EntityCollectionExtraParamsEmpty>
 
+typealias ArrayObservableExtraLong<Entity, Extra> = ArrayObservableExtra<Long, Entity, Extra>
+typealias ArrayObservableLong<Entity> = ArrayObservableExtraInt<Entity, EntityCollectionExtraParamsEmpty>
+
 typealias ArrayObservableExtraString<Entity, Extra> = ArrayObservableExtra<String, Entity, Extra>
 typealias ArrayObservableString<Entity> = ArrayObservableExtraString<Entity, EntityCollectionExtraParamsEmpty>
 

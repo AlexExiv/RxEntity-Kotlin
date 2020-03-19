@@ -6,4 +6,5 @@ interface Entity<Key: Comparable<Key>>
 }
 
 typealias EntityInt = Entity<Int>
+typealias EntityLong = Entity<Long>
 typealias EntityString = Entity<String>
