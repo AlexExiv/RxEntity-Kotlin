@@ -121,7 +121,7 @@ typealias EntityObservableCollectionExtraInt<Entity, CollectionExtra> = EntityOb
 typealias EntityObservableCollectionInt<Entity> = EntityObservableCollectionExtraInt<Entity, EntityCollectionExtraParamsEmpty>
 
 typealias EntityObservableCollectionExtraLong<Entity, CollectionExtra> = EntityObservableCollectionExtra<Long, Entity, CollectionExtra>
-typealias EntityObservableCollectionLong<Entity> = EntityObservableCollectionExtraInt<Entity, EntityCollectionExtraParamsEmpty>
+typealias EntityObservableCollectionLong<Entity> = EntityObservableCollectionExtraLong<Entity, EntityCollectionExtraParamsEmpty>
 
 typealias EntityObservableCollectionExtraString<Entity, CollectionExtra> = EntityObservableCollectionExtra<String, Entity, CollectionExtra>
 typealias EntityObservableCollectionString<Entity> = EntityObservableCollectionExtraString<Entity, EntityCollectionExtraParamsEmpty>

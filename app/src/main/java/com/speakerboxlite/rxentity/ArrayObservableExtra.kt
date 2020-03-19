@@ -80,7 +80,7 @@ typealias ArrayObservableExtraInt<Entity, Extra> = ArrayObservableExtra<Int, Ent
 typealias ArrayObservableInt<Entity> = ArrayObservableExtraInt<Entity, EntityCollectionExtraParamsEmpty>
 
 typealias ArrayObservableExtraLong<Entity, Extra> = ArrayObservableExtra<Long, Entity, Extra>
-typealias ArrayObservableLong<Entity> = ArrayObservableExtraInt<Entity, EntityCollectionExtraParamsEmpty>
+typealias ArrayObservableLong<Entity> = ArrayObservableExtraLong<Entity, EntityCollectionExtraParamsEmpty>
 
 typealias ArrayObservableExtraString<Entity, Extra> = ArrayObservableExtra<String, Entity, Extra>
 typealias ArrayObservableString<Entity> = ArrayObservableExtraString<Entity, EntityCollectionExtraParamsEmpty>

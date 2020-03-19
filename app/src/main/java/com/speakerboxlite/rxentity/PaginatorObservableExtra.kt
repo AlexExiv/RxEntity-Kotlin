@@ -28,7 +28,7 @@ typealias PaginatorObservableExtraInt<Entity, Extra> = PaginatorObservableExtra<
 typealias PaginatorObservableInt<Entity> = PaginatorObservableExtraInt<Entity, EntityCollectionExtraParamsEmpty>
 
 typealias PaginatorObservableExtraLong<Entity, Extra> = PaginatorObservableExtra<Long, Entity, Extra>
-typealias PaginatorObservableLong<Entity> = PaginatorObservableExtraInt<Entity, EntityCollectionExtraParamsEmpty>
+typealias PaginatorObservableLong<Entity> = PaginatorObservableExtraLong<Entity, EntityCollectionExtraParamsEmpty>
 
 typealias PaginatorObservableExtraString<Entity, Extra> = PaginatorObservableExtra<String, Entity, Extra>
 typealias PaginatorObservableString<Entity> = PaginatorObservableExtraString<Entity, EntityCollectionExtraParamsEmpty>
