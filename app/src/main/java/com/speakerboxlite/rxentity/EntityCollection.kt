@@ -5,7 +5,9 @@ import io.reactivex.Single
 import io.reactivex.disposables.CompositeDisposable
 import java.lang.ref.WeakReference
 
-open class EntityCollection<K: Comparable<K>, E: Entity<K>>(val queue: Scheduler)
+data class EntityCollectionExtraParamsEmpty(val unused: Int = 0)
+
+abstract class EntityCollection<K: Comparable<K>, E: Entity<K>>(val queue: Scheduler)
 {
     val items = mutableListOf<WeakReference<EntityObservable<K, E, *>>>()
     val sharedEntities = mutableMapOf<K, E>()
@@ -61,4 +63,6 @@ open class EntityCollection<K: Comparable<K>, E: Entity<K>>(val queue: Scheduler
         entities.forEach { sharedEntities[it._key] = it }
         items.forEach { it.get()?.update(source = source, entities = this.sharedEntities) }
     }
+
+    abstract fun createSingle(initial: E): SingleObservableExtra<K, E, EntityCollectionExtraParamsEmpty>
 }

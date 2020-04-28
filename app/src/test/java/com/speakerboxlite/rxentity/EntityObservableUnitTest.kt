@@ -21,7 +21,7 @@ class EntityObservableUnitTest
     fun test()
     {
         val collection = EntityObservableCollectionInt<TestEntity>(Schedulers.trampoline())
-        val single0 = collection.createSingle { Single.just(TestEntity(1, "1")) }
+        val single0 = collection.createSingle(1) { Single.just(TestEntity(1, "1")) }
         var disp = single0.subscribe {
             assertEquals(it.id, 1)
             assertEquals(it.value, "1")
@@ -135,7 +135,7 @@ class EntityObservableUnitTest
     fun testExtra()
     {
         val collection = EntityObservableCollectionInt<TestEntity>(Schedulers.trampoline())
-        val single0 = collection.createSingleExtra(extra = ExtraParams(test = "1")) {
+        val single0 = collection.createSingleExtra(key = 1, extra = ExtraParams(test = "1")) {
             if (it.first)
                 assertEquals(it.extra!!.test, "1")
             else
@@ -201,7 +201,7 @@ class EntityObservableUnitTest
     fun testCollectionExtra()
     {
         val collection = EntityObservableCollectionExtraInt<TestEntity, ExtraCollectionParams>(Schedulers.trampoline(), collectionExtra = ExtraCollectionParams(test="2"))
-        val single0 = collection.createSingleExtra(extra = ExtraParams(test = "1")) {
+        val single0 = collection.createSingleExtra(key = 1, extra = ExtraParams(test = "1")) {
             if (it.first)
                 assertEquals(it.collectionExtra!!.test, "2")
             else
@@ -244,6 +244,80 @@ class EntityObservableUnitTest
             assertEquals(it[1].value, "11")
         }
 
+        disp.dispose()
+    }
+    @Test
+    fun testArrayGetSingle()
+    {
+        val collection = EntityObservableCollectionExtraInt<TestEntity, ExtraCollectionParams>(Schedulers.trampoline(), collectionExtra = ExtraCollectionParams(test="2"))
+        collection.singleFetchCallback = {
+            if (it.first)
+                assertEquals(it.collectionExtra!!.test, "2")
+            else
+            {
+                //assertEquals(it.collectionExtra!!.test, "4")
+                assertEquals(it.refreshing, true)
+            }
+
+            Single.just(TestEntity(it.last!!.id, it.collectionExtra!!.test + it.last!!.id))
+        }
+
+        val page0 = collection.createPaginatorExtra(extra = ExtraParams(test = "1")) {
+            if (it.first)
+                assertEquals(it.collectionExtra!!.test, "2")
+            else
+            {
+                assertEquals(it.extra!!.test, "1")
+                assertEquals(it.collectionExtra!!.test, "4")
+                assertEquals(it.refreshing, true)
+                assertEquals(it.page, 0)
+            }
+
+            Single.just(listOf(TestEntity(1, it.collectionExtra!!.test + "1"), TestEntity(2, it.collectionExtra!!.test + "2")))
+        }
+
+        val single0 = page0[0]
+        var disp = single0.subscribe {
+            assertEquals(it.id, 1)
+            assertEquals(it.value, "21")
+        }
+        disp.dispose()
+
+        val single1 = page0[1]
+        disp = single1.subscribe {
+            assertEquals(it.id, 2)
+            assertEquals(it.value, "22")
+        }
+        disp.dispose()
+
+        single0.refresh()
+        single1.refresh()
+
+
+        disp = single0.subscribe {
+            assertEquals(it.id, 1)
+            assertEquals(it.value, "21")
+        }
+        disp.dispose()
+
+        disp = single1.subscribe {
+            assertEquals(it.id, 2)
+            assertEquals(it.value, "22")
+        }
+        disp.dispose()
+
+        collection.refresh(collectionExtra = ExtraCollectionParams(test = "4"))
+
+        disp = single0.subscribe {
+            assertEquals(it.id, 1)
+            assertEquals(it.value, "41")
+        }
+        disp.dispose()
+
+        disp = single1.subscribe {
+            assertEquals(it.id, 2)
+            assertEquals(it.value, "42")
+        }
         disp.dispose()
     }
 }

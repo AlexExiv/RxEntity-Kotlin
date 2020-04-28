@@ -3,7 +3,6 @@ package com.speakerboxlite.rxentity
 import io.reactivex.Observable
 import io.reactivex.Observer
 import io.reactivex.Scheduler
-import io.reactivex.disposables.Disposable
 import io.reactivex.subjects.BehaviorSubject
 
 open class ArrayObservableExtra<K: Comparable<K>, E: Entity<K>, Extra>(holder: EntityCollection<K, E>,
@@ -23,6 +22,8 @@ open class ArrayObservableExtra<K: Comparable<K>, E: Entity<K>, Extra>(holder: E
 
     val entities: List<E>? get() = rxPublish.value
     val entitiesNotNull: List<E> get() = rxPublish.value ?: listOf()
+
+    operator fun get(i: Int): SingleObservableExtra<K, E, EntityCollectionExtraParamsEmpty> = collection.get()!!.createSingle(entitiesNotNull[i])
 
     override fun update(source: String, entity: E)
     {

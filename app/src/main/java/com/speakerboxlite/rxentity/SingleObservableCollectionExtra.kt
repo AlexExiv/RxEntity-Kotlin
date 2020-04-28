@@ -6,24 +6,36 @@ import io.reactivex.Single
 import io.reactivex.subjects.PublishSubject
 import java.lang.ref.WeakReference
 
-data class SingleParams<Extra, CollectionExtra>(val refreshing: Boolean = false,
-                                                val resetCache: Boolean = false,
-                                                val first: Boolean = false,
-                                                val extra: Extra? = null,
-                                                val collectionExtra: CollectionExtra? = null)
+data class SingleParams<K, E, Extra, CollectionExtra>(val refreshing: Boolean = false,
+                                                      val resetCache: Boolean = false,
+                                                      val first: Boolean = false,
+                                                      val key: K,
+                                                      val last: E? = null,
+                                                      val extra: Extra? = null,
+                                                      val collectionExtra: CollectionExtra? = null)
+
+typealias SingleFetchCallback<K, E, Extra, CollectionExtra> = (SingleParams<K, E, Extra, CollectionExtra>) -> Single<E>
 
 class SingleObservableCollectionExtra<K: Comparable<K>, E: Entity<K>, Extra, CollectionExtra>(holder: EntityCollection<K, E>,
                                                                                               queue: Scheduler,
+                                                                                              key: K,
                                                                                               extra: Extra? = null,
                                                                                               collectionExtra: CollectionExtra? = null,
                                                                                               start: Boolean = true,
-                                                                                              fetch: (SingleParams<Extra, CollectionExtra>) -> Single<E>): SingleObservableExtra<K, E, Extra>(holder, queue, extra)
+                                                                                              fetch: SingleFetchCallback<K, E, Extra, CollectionExtra>): SingleObservableExtra<K, E, Extra>(holder, queue, key, extra)
 {
-    private val _rxRefresh = PublishSubject.create<SingleParams<Extra, CollectionExtra>>()
+    private val _rxRefresh = PublishSubject.create<SingleParams<K, E, Extra, CollectionExtra>>()
     private var started = false
 
     var collectionExtra: CollectionExtra? = collectionExtra
         private set
+
+    constructor(holder: EntityCollection<K, E>, queue: Scheduler, collectionExtra: CollectionExtra? = null, initial: E, fetch: SingleFetchCallback<K, E, Extra, CollectionExtra> ):
+            this(holder = holder, queue = queue, key = initial._key, collectionExtra = collectionExtra, start = false, fetch = fetch)
+    {
+        rxPublish.onNext(initial)
+        started = true
+    }
 
     init
     {
@@ -31,7 +43,7 @@ class SingleObservableCollectionExtra<K: Comparable<K>, E: Entity<K>, Extra, Col
         dispBag.add(_rxRefresh
             .doOnNext { weak.get()?.rxLoader?.onNext( true ) }
             .switchMap {
-                e: SingleParams<Extra, CollectionExtra> ->
+                e: SingleParams<K, E, Extra, CollectionExtra> ->
                 fetch( e )
                     .toObservable()
                     .onErrorResumeNext {
@@ -48,7 +60,7 @@ class SingleObservableCollectionExtra<K: Comparable<K>, E: Entity<K>, Extra, Col
         if (start)
         {
             started = true
-            _rxRefresh.onNext(SingleParams(first = true, extra = extra, collectionExtra = collectionExtra))
+            _rxRefresh.onNext(SingleParams(first = true, key = key, last = entity, extra = extra, collectionExtra = collectionExtra))
         }
     }
 
@@ -75,9 +87,9 @@ class SingleObservableCollectionExtra<K: Comparable<K>, E: Entity<K>, Extra, Col
                     weak.get()?._collectionRefresh(resetCache = resetCache, extra = extra, collectionExtra = collectionExtra)
                     it.onSuccess(true)
                 }
-                        .subscribeOn( queue )
-                        .observeOn( queue )
-                        .subscribe())
+                .subscribeOn( queue )
+                .observeOn( queue )
+                .subscribe())
     }
 
     fun _collectionRefresh(resetCache: Boolean = false, extra: Extra? = null, collectionExtra: CollectionExtra? = null)
@@ -86,7 +98,7 @@ class SingleObservableCollectionExtra<K: Comparable<K>, E: Entity<K>, Extra, Col
 
         super._refresh(resetCache = resetCache, extra = extra)
         this.collectionExtra = collectionExtra ?: this.collectionExtra
-        _rxRefresh.onNext(SingleParams(refreshing = true, resetCache = resetCache, first = !started, extra = this.extra, collectionExtra = this.collectionExtra))
+        _rxRefresh.onNext(SingleParams(refreshing = true, resetCache = resetCache, first = !started, key = key, last = entity, extra = this.extra, collectionExtra = this.collectionExtra))
         started = true
     }
 }

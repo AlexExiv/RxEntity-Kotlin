@@ -3,25 +3,64 @@ package com.speakerboxlite.rxentity
 import io.reactivex.Observable
 import io.reactivex.Scheduler
 import io.reactivex.Single
-import io.reactivex.disposables.Disposable
 import java.lang.ref.WeakReference
-
-data class EntityCollectionExtraParamsEmpty(val unused: Int = 0)
 
 class EntityObservableCollectionExtra<K: Comparable<K>, E: Entity<K>, CollectionExtra>(queue: Scheduler, collectionExtra: CollectionExtra? = null): EntityCollection<K, E>(queue)
 {
     var collectionExtra: CollectionExtra? = collectionExtra
         protected set
 
-    //MARK: - Create Observables
-    fun createSingle(start: Boolean = true, fetch: (SingleParams<EntityCollectionExtraParamsEmpty, CollectionExtra>) -> Single<E>): SingleObservableExtra<K, E, EntityCollectionExtraParamsEmpty>
+    var singleFetchCallback: SingleFetchCallback<K, E, EntityCollectionExtraParamsEmpty, CollectionExtra>? = null
+
+    /**
+     *
+     *
+     * @param initial initial value for the single
+     * @return SingleObservable object
+     */
+    override fun createSingle(initial: E): SingleObservableExtra<K, E, EntityCollectionExtraParamsEmpty>
     {
-        return SingleObservableCollectionExtra(holder = this, queue = queue, collectionExtra = collectionExtra, start = start, fetch = fetch)
+        assert(singleFetchCallback != null) { "To create Single with initial value you must specify singleFetchCallback before" }
+        return SingleObservableCollectionExtra(holder = this, queue = queue, collectionExtra = collectionExtra, initial = initial, fetch = singleFetchCallback!!)
     }
 
-    fun <Extra> createSingleExtra(extra: Extra? = null, start: Boolean = true, fetch: (SingleParams<Extra, CollectionExtra>) -> Single<E>): SingleObservableExtra<K, E, Extra>
+    /**
+     * TODO
+     *
+     * @param start the flag indicated that SingleObservable must fetch first entity immediately after it has been created
+     * @return
+     */
+    fun createSingle(key: K, start: Boolean = true): SingleObservableExtra<K, E, EntityCollectionExtraParamsEmpty>
     {
-        return SingleObservableCollectionExtra(holder = this, queue = queue, extra = extra, collectionExtra = collectionExtra, start = start, fetch = fetch)
+        assert(singleFetchCallback != null) { "To create Single with default fetch method must specify singleFetchCallback before" }
+        return createSingle(key = key, start = start, fetch = singleFetchCallback!!)
+    }
+
+    /**
+     * TODO
+     *
+     * @param key the unique field of a entity by using it Single retrieve the entity
+     * @param start the flag indicated that SingleObservable must fetch first entity immediately after it has been created
+     * @param fetch the closure callback that specify method to get entities from repository
+     * @return
+     */
+    fun createSingle(key: K, start: Boolean = true, fetch: SingleFetchCallback<K, E, EntityCollectionExtraParamsEmpty, CollectionExtra>): SingleObservableExtra<K, E, EntityCollectionExtraParamsEmpty>
+    {
+        return SingleObservableCollectionExtra(holder = this, queue = queue, key = key, collectionExtra = collectionExtra, start = start, fetch = fetch)
+    }
+
+    /**
+     * TODO
+     *
+     * @param Extra
+     * @param extra
+     * @param start
+     * @param fetch
+     * @return
+     */
+    fun <Extra> createSingleExtra(key: K, extra: Extra? = null, start: Boolean = true, fetch: SingleFetchCallback<K, E, Extra, CollectionExtra>): SingleObservableExtra<K, E, Extra>
+    {
+        return SingleObservableCollectionExtra(holder = this, queue = queue, key= key, extra = extra, collectionExtra = collectionExtra, start = start, fetch = fetch)
     }
 
     fun createArray(start: Boolean = true, fetch: (PageParams<EntityCollectionExtraParamsEmpty, CollectionExtra>) -> Single<List<E>>): ArrayObservableExtra<K, E, EntityCollectionExtraParamsEmpty>
@@ -44,7 +83,6 @@ class EntityObservableCollectionExtra<K: Comparable<K>, E: Entity<K>, Collection
         return PaginatorObservableCollectionExtra(holder = this, queue = queue, extra = extra, collectionExtra = collectionExtra, perPage = perPage, start = start, fetch = fetch)
     }
 
-    //MARK: - Updates
     fun RxRequestForUpdate(source: String = "", key: K, update: (E) -> E): Single<Optional<E>>
     {
         val weak = WeakReference(this)
