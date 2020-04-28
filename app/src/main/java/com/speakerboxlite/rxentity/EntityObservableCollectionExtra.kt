@@ -44,7 +44,7 @@ class EntityObservableCollectionExtra<K: Comparable<K>, E: Entity<K>, Collection
      * @param fetch the closure callback that specify method to get entities from repository
      * @return
      */
-    fun createSingle(key: K, start: Boolean = true, fetch: SingleFetchCallback<K, E, EntityCollectionExtraParamsEmpty, CollectionExtra>): SingleObservableExtra<K, E, EntityCollectionExtraParamsEmpty>
+    fun createSingle(key: K? = null, start: Boolean = true, fetch: SingleFetchCallback<K, E, EntityCollectionExtraParamsEmpty, CollectionExtra>): SingleObservableExtra<K, E, EntityCollectionExtraParamsEmpty>
     {
         return SingleObservableCollectionExtra(holder = this, queue = queue, key = key, collectionExtra = collectionExtra, start = start, fetch = fetch)
     }
@@ -58,9 +58,9 @@ class EntityObservableCollectionExtra<K: Comparable<K>, E: Entity<K>, Collection
      * @param fetch
      * @return
      */
-    fun <Extra> createSingleExtra(key: K, extra: Extra? = null, start: Boolean = true, fetch: SingleFetchCallback<K, E, Extra, CollectionExtra>): SingleObservableExtra<K, E, Extra>
+    fun <Extra> createSingleExtra(key: K? = null, extra: Extra? = null, start: Boolean = true, fetch: SingleFetchCallback<K, E, Extra, CollectionExtra>): SingleObservableExtra<K, E, Extra>
     {
-        return SingleObservableCollectionExtra(holder = this, queue = queue, key= key, extra = extra, collectionExtra = collectionExtra, start = start, fetch = fetch)
+        return SingleObservableCollectionExtra(holder = this, queue = queue, key = key, extra = extra, collectionExtra = collectionExtra, start = start, fetch = fetch)
     }
 
     fun createArray(start: Boolean = true, fetch: (PageParams<EntityCollectionExtraParamsEmpty, CollectionExtra>) -> Single<List<E>>): ArrayObservableExtra<K, E, EntityCollectionExtraParamsEmpty>

@@ -9,7 +9,7 @@ import java.lang.ref.WeakReference
 data class SingleParams<K, E, Extra, CollectionExtra>(val refreshing: Boolean = false,
                                                       val resetCache: Boolean = false,
                                                       val first: Boolean = false,
-                                                      val key: K,
+                                                      val key: K? = null,
                                                       val last: E? = null,
                                                       val extra: Extra? = null,
                                                       val collectionExtra: CollectionExtra? = null)
@@ -18,7 +18,7 @@ typealias SingleFetchCallback<K, E, Extra, CollectionExtra> = (SingleParams<K, E
 
 class SingleObservableCollectionExtra<K: Comparable<K>, E: Entity<K>, Extra, CollectionExtra>(holder: EntityCollection<K, E>,
                                                                                               queue: Scheduler,
-                                                                                              key: K,
+                                                                                              key: K? = null,
                                                                                               extra: Extra? = null,
                                                                                               collectionExtra: CollectionExtra? = null,
                                                                                               start: Boolean = true,
@@ -46,6 +46,7 @@ class SingleObservableCollectionExtra<K: Comparable<K>, E: Entity<K>, Extra, Col
                 e: SingleParams<K, E, Extra, CollectionExtra> ->
                 fetch( e )
                     .toObservable()
+                    .doOnNext { this.key = it._key }
                     .onErrorResumeNext {
                         t: Throwable ->
                         weak.get()?.rxError?.onNext(t)

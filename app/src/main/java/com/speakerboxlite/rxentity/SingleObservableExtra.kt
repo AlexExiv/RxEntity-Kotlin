@@ -8,7 +8,7 @@ import io.reactivex.subjects.BehaviorSubject
 
 open class SingleObservableExtra<K: Comparable<K>, E: Entity<K>, Extra>(holder: EntityCollection<K, E>,
                                                                         val queue: Scheduler,
-                                                                        val key: K,
+                                                                        key: K? = null,
                                                                         extra: Extra? = null): EntityObservable<K, E, E>(holder)
 {
     val rxPublish = BehaviorSubject.create<E>()
@@ -16,6 +16,8 @@ open class SingleObservableExtra<K: Comparable<K>, E: Entity<K>, Extra>(holder: 
     var extra: Extra? = extra
         private set
 
+    var key: K? = key
+        protected set
     val entity: E? get() = rxPublish.value
 
     override fun update(source: String, entity: E)
