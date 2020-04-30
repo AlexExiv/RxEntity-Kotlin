@@ -246,6 +246,7 @@ class EntityObservableUnitTest
 
         disp.dispose()
     }
+
     @Test
     fun testArrayGetSingle()
     {
@@ -317,6 +318,53 @@ class EntityObservableUnitTest
         disp = single1.subscribe {
             assertEquals(it.id, 2)
             assertEquals(it.value, "42")
+        }
+        disp.dispose()
+    }
+
+    @Test
+    fun testArrayInitial()
+    {
+        var i = 0
+        val collection = EntityObservableCollectionExtraInt<TestEntity, ExtraCollectionParams>(Schedulers.trampoline(), collectionExtra = ExtraCollectionParams(test="2"))
+        collection.arrayFetchCallback = { pp ->
+            if (pp.first)
+                assertEquals(pp.collectionExtra!!.test, "2")
+            else
+            {
+                //assertEquals(it.collectionExtra!!.test, "4")
+                assertEquals(pp.refreshing, true)
+            }
+
+            Single.just(pp.keys.map { TestEntity(it, pp.collectionExtra!!.test + it) })
+        }
+
+        val array = collection.createArray(initial = listOf(TestEntity(1, "2"), TestEntity(2, "3")))
+        var disp = array.subscribe {
+            assertEquals(it[0].id, 1)
+            assertEquals(it[0].value, "2")
+            assertEquals(it[1].id, 2)
+            assertEquals(it[1].value, "3")
+        }
+        disp.dispose()
+
+        collection.refresh()
+
+        disp = array.subscribe {
+            assertEquals(it[0].id, 1)
+            assertEquals(it[0].value, "21")
+            assertEquals(it[1].id, 2)
+            assertEquals(it[1].value, "22")
+        }
+        disp.dispose()
+
+        collection.refresh(collectionExtra = ExtraCollectionParams(test = "4"))
+
+        disp = array.subscribe {
+            assertEquals(it[0].id, 1)
+            assertEquals(it[0].value, "41")
+            assertEquals(it[1].id, 2)
+            assertEquals(it[1].value, "42")
         }
         disp.dispose()
     }

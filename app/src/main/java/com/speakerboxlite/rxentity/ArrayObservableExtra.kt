@@ -7,6 +7,7 @@ import io.reactivex.subjects.BehaviorSubject
 
 open class ArrayObservableExtra<K: Comparable<K>, E: Entity<K>, Extra>(holder: EntityCollection<K, E>,
                                                                        val queue: Scheduler,
+                                                                       keys: List<K> = listOf(),
                                                                        extra: Extra? = null): EntityObservable<K, E, List<E>>(holder)
 {
     val rxPublish = BehaviorSubject.create<List<E>>()
@@ -20,10 +21,13 @@ open class ArrayObservableExtra<K: Comparable<K>, E: Entity<K>, Extra>(holder: E
     var perPage: Int = 999999
         protected set
 
+    var keys: List<K> = keys
+        protected set
+
     val entities: List<E>? get() = rxPublish.value
     val entitiesNotNull: List<E> get() = rxPublish.value ?: listOf()
 
-    operator fun get(i: Int): SingleObservableExtra<K, E, EntityCollectionExtraParamsEmpty> = collection.get()!!.createSingle(entitiesNotNull[i])
+    operator fun get(i: Int): SingleObservable<K, E> = collection.get()!!.createSingle(entitiesNotNull[i])
 
     override fun update(source: String, entity: E)
     {
@@ -77,14 +81,16 @@ open class ArrayObservableExtra<K: Comparable<K>, E: Entity<K>, Extra>(holder: E
     }
 }
 
+typealias ArrayObservable<K, Entity> = ArrayObservableExtra<K, Entity, EntityCollectionExtraParamsEmpty>
+
 typealias ArrayObservableExtraInt<Entity, Extra> = ArrayObservableExtra<Int, Entity, Extra>
-typealias ArrayObservableInt<Entity> = ArrayObservableExtraInt<Entity, EntityCollectionExtraParamsEmpty>
+typealias ArrayObservableInt<Entity> = ArrayObservable<Int, Entity>
 
 typealias ArrayObservableExtraLong<Entity, Extra> = ArrayObservableExtra<Long, Entity, Extra>
-typealias ArrayObservableLong<Entity> = ArrayObservableExtraLong<Entity, EntityCollectionExtraParamsEmpty>
+typealias ArrayObservableLong<Entity> = ArrayObservable<Long, Entity>
 
 typealias ArrayObservableExtraString<Entity, Extra> = ArrayObservableExtra<String, Entity, Extra>
-typealias ArrayObservableString<Entity> = ArrayObservableExtraString<Entity, EntityCollectionExtraParamsEmpty>
+typealias ArrayObservableString<Entity> = ArrayObservable<String, Entity>
 
 fun <K: Comparable<K>, E: Entity<K>, Extra> Observable<Extra>.refresh(to: ArrayObservableExtra<K, E, Extra>, resetCache: Boolean = false)
         = subscribe { to._refresh(resetCache = resetCache, extra = it) }

@@ -5,8 +5,9 @@ import io.reactivex.Scheduler
 const val PAGINATOR_END = 9999
 
 open class PaginatorObservableExtra<K: Comparable<K>, E: Entity<K>, Extra>(holder: EntityCollection<K, E>,
-                                                                      queue: Scheduler,
-                                                                      extra: Extra? = null): ArrayObservableExtra<K, E, Extra>(holder, queue, extra)
+                                                                           queue: Scheduler,
+                                                                           keys: List<K> = listOf(),
+                                                                           extra: Extra? = null): ArrayObservableExtra<K, E, Extra>(holder, queue, keys, extra)
 {
     open fun next()
     {
@@ -24,11 +25,13 @@ open class PaginatorObservableExtra<K: Comparable<K>, E: Entity<K>, Extra>(holde
     }
 }
 
+typealias PaginatorObservable<K, Entity> = PaginatorObservableExtra<K, Entity, EntityCollectionExtraParamsEmpty>
+
 typealias PaginatorObservableExtraInt<Entity, Extra> = PaginatorObservableExtra<Int, Entity, Extra>
-typealias PaginatorObservableInt<Entity> = PaginatorObservableExtraInt<Entity, EntityCollectionExtraParamsEmpty>
+typealias PaginatorObservableInt<Entity> = PaginatorObservable<Int, Entity>
 
 typealias PaginatorObservableExtraLong<Entity, Extra> = PaginatorObservableExtra<Long, Entity, Extra>
-typealias PaginatorObservableLong<Entity> = PaginatorObservableExtraLong<Entity, EntityCollectionExtraParamsEmpty>
+typealias PaginatorObservableLong<Entity> = PaginatorObservable<Long, Entity>
 
 typealias PaginatorObservableExtraString<Entity, Extra> = PaginatorObservableExtra<String, Entity, Extra>
-typealias PaginatorObservableString<Entity> = PaginatorObservableExtraString<Entity, EntityCollectionExtraParamsEmpty>
+typealias PaginatorObservableString<Entity> = PaginatorObservable<String, Entity>

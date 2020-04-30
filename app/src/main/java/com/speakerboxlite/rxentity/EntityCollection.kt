@@ -64,5 +64,6 @@ abstract class EntityCollection<K: Comparable<K>, E: Entity<K>>(val queue: Sched
         items.forEach { it.get()?.update(source = source, entities = this.sharedEntities) }
     }
 
-    abstract fun createSingle(initial: E): SingleObservableExtra<K, E, EntityCollectionExtraParamsEmpty>
+    abstract fun createSingle(initial: E): SingleObservable<K, E>
+    abstract fun createArray(initial: List<E>): ArrayObservable<K, E>
 }

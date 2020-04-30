@@ -11,6 +11,7 @@ class EntityObservableCollectionExtra<K: Comparable<K>, E: Entity<K>, Collection
         protected set
 
     var singleFetchCallback: SingleFetchCallback<K, E, EntityCollectionExtraParamsEmpty, CollectionExtra>? = null
+    var arrayFetchCallback: PageFetchCallback<K, E, EntityCollectionExtraParamsEmpty, CollectionExtra>? = null
 
     /**
      *
@@ -18,7 +19,7 @@ class EntityObservableCollectionExtra<K: Comparable<K>, E: Entity<K>, Collection
      * @param initial initial value for the single
      * @return SingleObservable object
      */
-    override fun createSingle(initial: E): SingleObservableExtra<K, E, EntityCollectionExtraParamsEmpty>
+    override fun createSingle(initial: E): SingleObservable<K, E>
     {
         assert(singleFetchCallback != null) { "To create Single with initial value you must specify singleFetchCallback before" }
         return SingleObservableCollectionExtra(holder = this, queue = queue, collectionExtra = collectionExtra, initial = initial, fetch = singleFetchCallback!!)
@@ -30,7 +31,7 @@ class EntityObservableCollectionExtra<K: Comparable<K>, E: Entity<K>, Collection
      * @param start the flag indicated that SingleObservable must fetch first entity immediately after it has been created
      * @return
      */
-    fun createSingle(key: K, start: Boolean = true): SingleObservableExtra<K, E, EntityCollectionExtraParamsEmpty>
+    fun createSingle(key: K, start: Boolean = true): SingleObservable<K, E>
     {
         assert(singleFetchCallback != null) { "To create Single with default fetch method must specify singleFetchCallback before" }
         return createSingle(key = key, start = start, fetch = singleFetchCallback!!)
@@ -44,7 +45,7 @@ class EntityObservableCollectionExtra<K: Comparable<K>, E: Entity<K>, Collection
      * @param fetch the closure callback that specify method to get entities from repository
      * @return
      */
-    fun createSingle(key: K? = null, start: Boolean = true, fetch: SingleFetchCallback<K, E, EntityCollectionExtraParamsEmpty, CollectionExtra>): SingleObservableExtra<K, E, EntityCollectionExtraParamsEmpty>
+    fun createSingle(key: K? = null, start: Boolean = true, fetch: SingleFetchCallback<K, E, EntityCollectionExtraParamsEmpty, CollectionExtra>): SingleObservable<K, E>
     {
         return SingleObservableCollectionExtra(holder = this, queue = queue, key = key, collectionExtra = collectionExtra, start = start, fetch = fetch)
     }
@@ -63,22 +64,34 @@ class EntityObservableCollectionExtra<K: Comparable<K>, E: Entity<K>, Collection
         return SingleObservableCollectionExtra(holder = this, queue = queue, key = key, extra = extra, collectionExtra = collectionExtra, start = start, fetch = fetch)
     }
 
-    fun createArray(start: Boolean = true, fetch: (PageParams<EntityCollectionExtraParamsEmpty, CollectionExtra>) -> Single<List<E>>): ArrayObservableExtra<K, E, EntityCollectionExtraParamsEmpty>
+    override fun createArray(initial: List<E>): ArrayObservable<K, E>
     {
-        return PaginatorObservableCollectionExtra(holder = this, queue = queue, collectionExtra = collectionExtra, start = start, fetch = fetch)
+        assert(arrayFetchCallback != null) { "To create Array with initial values you must specify arrayFetchCallback before" }
+        return PaginatorObservableCollectionExtra(holder = this, queue = queue, collectionExtra = collectionExtra, initial = initial, fetch = arrayFetchCallback!!)
     }
 
-    fun <Extra> createArrayExtra(extra: Extra? = null, start: Boolean = true, fetch: (PageParams<Extra, CollectionExtra>) -> Single<List<E>>): ArrayObservableExtra<K, E, Extra>
+    fun createArray(keys: List<K>, start: Boolean = true): ArrayObservable<K, E>
     {
-        return PaginatorObservableCollectionExtra(holder = this, queue = queue, extra = extra, collectionExtra = collectionExtra, start = start, fetch = fetch)
+        assert(arrayFetchCallback != null) { "To create Array with default fetch method must specify arrayFetchCallback before" }
+        return createArray(keys = keys, start = start, fetch = arrayFetchCallback!!)
     }
 
-    fun createPaginator(perPage: Int = 35, start: Boolean = true, fetch: (PageParams<EntityCollectionExtraParamsEmpty, CollectionExtra>) -> Single<List<E>>): PaginatorObservableExtra<K, E, EntityCollectionExtraParamsEmpty>
+    fun createArray(keys: List<K> = listOf(), start: Boolean = true, fetch: PageFetchCallback<K, E, EntityCollectionExtraParamsEmpty, CollectionExtra>): ArrayObservable<K, E>
+    {
+        return PaginatorObservableCollectionExtra(holder = this, queue = queue, keys = keys, collectionExtra = collectionExtra, start = start, fetch = fetch)
+    }
+
+    fun <Extra> createArrayExtra(keys: List<K> = listOf(), extra: Extra? = null, start: Boolean = true, fetch: PageFetchCallback<K, E, Extra, CollectionExtra>): ArrayObservableExtra<K, E, Extra>
+    {
+        return PaginatorObservableCollectionExtra(holder = this, queue = queue, keys = keys, extra = extra, collectionExtra = collectionExtra, start = start, fetch = fetch)
+    }
+
+    fun createPaginator(perPage: Int = 35, start: Boolean = true, fetch: PageFetchCallback<K, E, EntityCollectionExtraParamsEmpty, CollectionExtra>): PaginatorObservable<K, E>
     {
         return PaginatorObservableCollectionExtra(holder = this, queue = queue, collectionExtra = collectionExtra, perPage = perPage, start = start, fetch = fetch)
     }
 
-    fun <Extra> createPaginatorExtra(extra: Extra? = null, perPage: Int = 35, start: Boolean = true, fetch: (PageParams<Extra, CollectionExtra>) -> Single<List<E>>): PaginatorObservableExtra<K, E, Extra>
+    fun <Extra> createPaginatorExtra(extra: Extra? = null, perPage: Int = 35, start: Boolean = true, fetch: PageFetchCallback<K, E, Extra, CollectionExtra>): PaginatorObservableExtra<K, E, Extra>
     {
         return PaginatorObservableCollectionExtra(holder = this, queue = queue, extra = extra, collectionExtra = collectionExtra, perPage = perPage, start = start, fetch = fetch)
     }
@@ -155,14 +168,16 @@ class EntityObservableCollectionExtra<K: Comparable<K>, E: Entity<K>, Collection
     }
 }
 
+typealias EntityObservableCollection<K, Entity> = EntityObservableCollectionExtra<K, Entity, EntityCollectionExtraParamsEmpty>
+
 typealias EntityObservableCollectionExtraInt<Entity, CollectionExtra> = EntityObservableCollectionExtra<Int, Entity, CollectionExtra>
-typealias EntityObservableCollectionInt<Entity> = EntityObservableCollectionExtraInt<Entity, EntityCollectionExtraParamsEmpty>
+typealias EntityObservableCollectionInt<Entity> = EntityObservableCollection<Int, Entity>
 
 typealias EntityObservableCollectionExtraLong<Entity, CollectionExtra> = EntityObservableCollectionExtra<Long, Entity, CollectionExtra>
-typealias EntityObservableCollectionLong<Entity> = EntityObservableCollectionExtraLong<Entity, EntityCollectionExtraParamsEmpty>
+typealias EntityObservableCollectionLong<Entity> = EntityObservableCollection<Long, Entity>
 
 typealias EntityObservableCollectionExtraString<Entity, CollectionExtra> = EntityObservableCollectionExtra<String, Entity, CollectionExtra>
-typealias EntityObservableCollectionString<Entity> = EntityObservableCollectionExtraString<Entity, EntityCollectionExtraParamsEmpty>
+typealias EntityObservableCollectionString<Entity> = EntityObservableCollection<String, Entity>
 
 fun <K: Comparable<K>, E: Entity<K>, CollectionExtra> Observable<CollectionExtra>.refresh(to: EntityObservableCollectionExtra<K, E, CollectionExtra>, resetCache: Boolean = false)
         = subscribe { to._refresh(resetCache = resetCache, collectionExtra = it) }
