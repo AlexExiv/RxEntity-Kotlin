@@ -10,7 +10,7 @@ open class ArrayObservableExtra<K: Comparable<K>, E: Entity<K>, Extra>(holder: E
                                                                        keys: List<K> = listOf(),
                                                                        extra: Extra? = null): EntityObservable<K, E, List<E>>(holder)
 {
-    val rxPublish = BehaviorSubject.create<List<E>>()
+    protected val rxPublish = BehaviorSubject.create<List<E>>()
 
     var extra: Extra? = extra
         protected set

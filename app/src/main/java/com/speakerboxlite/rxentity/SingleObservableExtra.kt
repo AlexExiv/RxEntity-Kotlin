@@ -11,7 +11,7 @@ open class SingleObservableExtra<K: Comparable<K>, E: Entity<K>, Extra>(holder: 
                                                                         key: K? = null,
                                                                         extra: Extra? = null): EntityObservable<K, E, E>(holder)
 {
-    val rxPublish = BehaviorSubject.create<E>()
+    protected val rxPublish = BehaviorSubject.create<E>()
 
     var extra: Extra? = extra
         private set

@@ -50,6 +50,7 @@ class SingleObservableCollectionExtra<K: Comparable<K>, E: Entity<K>, Extra, Col
                     .onErrorResumeNext {
                         t: Throwable ->
                         weak.get()?.rxError?.onNext(t)
+                        weak.get()?.rxLoader?.onNext( false )
                         Observable.empty<E>()
                     }
             }
