@@ -1,6 +1,6 @@
 package com.speakerboxlite.rxentity
 
-import io.reactivex.Single
+import io.reactivex.Observable
 import io.reactivex.schedulers.Schedulers
 import org.junit.Test
 
@@ -21,7 +21,7 @@ class EntityObservableUnitTest
     fun test()
     {
         val collection = EntityObservableCollectionInt<TestEntity>(Schedulers.trampoline())
-        val single0 = collection.createSingle(1) { Single.just(TestEntity(1, "1")) }
+        val single0 = collection.createSingle(1) { Observable.just(TestEntity(1, "1")) }
         var disp = single0.subscribe {
             assertEquals(it.id, 1)
             assertEquals(it.value, "1")
@@ -29,7 +29,7 @@ class EntityObservableUnitTest
 
         disp.dispose()
 
-        val pages0 = collection.createPaginator { Single.just(listOf(TestEntity(1, "2"), TestEntity(2, "3"))) }
+        val pages0 = collection.createPaginator { Observable.just(listOf(TestEntity(1, "2"), TestEntity(2, "3"))) }
         disp = pages0.subscribe {
             assertEquals(pages0.page, PAGINATOR_END)
 
@@ -144,7 +144,7 @@ class EntityObservableUnitTest
                 assertEquals(it.refreshing, true)
             }
 
-            Single.just(TestEntity(1, it.extra!!.test))
+            Observable.just(TestEntity(1, it.extra!!.test))
         }
 
         var disp = single0.subscribe {
@@ -172,7 +172,7 @@ class EntityObservableUnitTest
                 assertEquals(it.page, 0)
             }
 
-            Single.just(listOf(TestEntity(1, it.extra!!.test), TestEntity(2, it.extra!!.test + "1")))
+            Observable.just(listOf(TestEntity(1, it.extra!!.test), TestEntity(2, it.extra!!.test + "1")))
         }
 
         disp = page0.subscribe {
@@ -211,7 +211,7 @@ class EntityObservableUnitTest
                 assertEquals(it.refreshing, true)
             }
 
-            Single.just(TestEntity(1, it.extra!!.test))
+            Observable.just(TestEntity(1, it.extra!!.test))
         }
 
         val page0 = collection.createPaginatorExtra(extra = ExtraParams(test = "1")) {
@@ -225,7 +225,7 @@ class EntityObservableUnitTest
                 assertEquals(it.page, 0)
             }
 
-            Single.just(listOf(TestEntity(1, it.extra!!.test), TestEntity(2, it.extra!!.test + "1")))
+            Observable.just(listOf(TestEntity(1, it.extra!!.test), TestEntity(2, it.extra!!.test + "1")))
         }
 
         collection.refresh(collectionExtra = ExtraCollectionParams(test = "4"))
@@ -260,7 +260,7 @@ class EntityObservableUnitTest
                 assertEquals(it.refreshing, true)
             }
 
-            Single.just(TestEntity(it.last!!.id, it.collectionExtra!!.test + it.last!!.id))
+            Observable.just(TestEntity(it.last!!.id, it.collectionExtra!!.test + it.last!!.id))
         }
 
         val page0 = collection.createPaginatorExtra(extra = ExtraParams(test = "1")) {
@@ -274,7 +274,7 @@ class EntityObservableUnitTest
                 assertEquals(it.page, 0)
             }
 
-            Single.just(listOf(TestEntity(1, it.collectionExtra!!.test + "1"), TestEntity(2, it.collectionExtra!!.test + "2")))
+            Observable.just(listOf(TestEntity(1, it.collectionExtra!!.test + "1"), TestEntity(2, it.collectionExtra!!.test + "2")))
         }
 
         val single0 = page0[0]
@@ -336,7 +336,7 @@ class EntityObservableUnitTest
                 assertEquals(pp.refreshing, true)
             }
 
-            Single.just(pp.keys.map { TestEntity(it, pp.collectionExtra!!.test + it) })
+            Observable.just(pp.keys.map { TestEntity(it, pp.collectionExtra!!.test + it) })
         }
 
         val array = collection.createArray(initial = listOf(TestEntity(1, "2"), TestEntity(2, "3")))

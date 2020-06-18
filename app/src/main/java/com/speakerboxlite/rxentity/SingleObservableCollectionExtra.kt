@@ -14,7 +14,7 @@ data class SingleParams<K, E, Extra, CollectionExtra>(val refreshing: Boolean = 
                                                       val extra: Extra? = null,
                                                       val collectionExtra: CollectionExtra? = null)
 
-typealias SingleFetchCallback<K, E, Extra, CollectionExtra> = (SingleParams<K, E, Extra, CollectionExtra>) -> Single<E>
+typealias SingleFetchCallback<K, E, Extra, CollectionExtra> = (SingleParams<K, E, Extra, CollectionExtra>) -> Observable<E>
 
 class SingleObservableCollectionExtra<K: Comparable<K>, E: Entity<K>, Extra, CollectionExtra>(holder: EntityCollection<K, E>,
                                                                                               queue: Scheduler,
@@ -45,7 +45,6 @@ class SingleObservableCollectionExtra<K: Comparable<K>, E: Entity<K>, Extra, Col
             .switchMap {
                 e: SingleParams<K, E, Extra, CollectionExtra> ->
                 fetch( e )
-                    .toObservable()
                     .doOnNext { this.key = it._key }
                     .onErrorResumeNext {
                         t: Throwable ->
