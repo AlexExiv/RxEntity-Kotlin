@@ -19,7 +19,7 @@ open class PaginatorObservableExtra<K: Comparable<K>, E: Entity<K>, Extra>(holde
         //assert( queue.operationQueue == OperationQueue.current, "Append can be updated only from the specified in the constructor OperationQueue" )
 
         val _entities = this.entities?.toMutableList() ?: mutableListOf()
-        _entities.addAll(  entities )
+        _entities.replaceOrAdd(entities)
         page = if (entities.size == perPage) page + 1 else PAGINATOR_END
         return _entities
     }

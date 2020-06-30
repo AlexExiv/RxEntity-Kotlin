@@ -2,6 +2,7 @@ package com.speakerboxlite.rxentity
 
 import io.reactivex.Observable
 import io.reactivex.schedulers.Schedulers
+import io.reactivex.subjects.BehaviorSubject
 import org.junit.Test
 
 import org.junit.Assert.*
@@ -365,6 +366,39 @@ class EntityObservableUnitTest
             assertEquals(it[0].value, "41")
             assertEquals(it[1].id, 2)
             assertEquals(it[1].value, "42")
+        }
+        disp.dispose()
+    }
+
+    @Test
+    fun testArrayResend()
+    {
+        var i = 0
+        val rxSender = BehaviorSubject.create<List<TestEntity>>()
+        val collection = EntityObservableCollectionExtraInt<TestEntity, ExtraCollectionParams>(Schedulers.trampoline(), collectionExtra = ExtraCollectionParams(test="2"))
+        val arr = collection.createArray {
+            rxSender
+        }
+
+        rxSender.onNext(listOf(TestEntity(1, "2"), TestEntity(2, "3")))
+
+        var disp = arr.subscribe {
+            assertEquals(it[0].id, 1)
+            assertEquals(it[0].value, "2")
+            assertEquals(it[1].id, 2)
+            assertEquals(it[1].value, "3")
+        }
+        disp.dispose()
+
+        rxSender.onNext(listOf(TestEntity(1, "21"), TestEntity(2, "22"), TestEntity(3, "4")))
+
+        disp = arr.subscribe {
+            assertEquals(it[0].id, 1)
+            assertEquals(it[0].value, "21")
+            assertEquals(it[1].id, 2)
+            assertEquals(it[1].value, "22")
+            assertEquals(it[2].id, 3)
+            assertEquals(it[2].value, "4")
         }
         disp.dispose()
     }

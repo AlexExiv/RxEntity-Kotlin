@@ -3,7 +3,6 @@ package com.speakerboxlite.rxentity
 import io.reactivex.Observable
 import io.reactivex.Scheduler
 import io.reactivex.Single
-import io.reactivex.disposables.Disposable
 import io.reactivex.subjects.PublishSubject
 import java.lang.ref.WeakReference
 
