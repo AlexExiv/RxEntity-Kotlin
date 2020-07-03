@@ -2,7 +2,7 @@ package com.speakerboxlite.rxentity
 
 import io.reactivex.Scheduler
 
-const val PAGINATOR_END = 9999
+const val PAGINATOR_END = -9999
 
 open class PaginatorObservableExtra<K: Comparable<K>, E: Entity<K>, Extra>(holder: EntityCollection<K, E>,
                                                                            queue: Scheduler,
