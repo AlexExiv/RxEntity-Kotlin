@@ -24,7 +24,7 @@ class PaginatorObservableCollectionExtra<K: Comparable<K>, E: Entity<K>, Extra, 
                                                                                                  collectionExtra: CollectionExtra? = null,
                                                                                                  perPage: Int = 35,
                                                                                                  start: Boolean = true,
-                                                                                                 fetch: PageFetchCallback<K, E, Extra, CollectionExtra>): PaginatorObservableExtra<K, E, Extra>(holder, queue, keys, extra)
+                                                                                                 fetch: PageFetchCallback<K, E, Extra, CollectionExtra>): PaginatorObservableExtra<K, E, Extra>(holder, queue, keys, perPage, extra)
 {
     protected val rxPage = PublishSubject.create<PageParams<K, Extra, CollectionExtra>>()
 

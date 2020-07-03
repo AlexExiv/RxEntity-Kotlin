@@ -402,4 +402,22 @@ class EntityObservableUnitTest
         }
         disp.dispose()
     }
+
+
+    @Test
+    fun testCollectionPagination()
+    {
+        val collection = EntityObservableCollectionExtraInt<TestEntity, ExtraCollectionParams>(Schedulers.trampoline(), collectionExtra = ExtraCollectionParams(test = "2"))
+
+        val page0 = collection.createPaginatorExtra(extra = ExtraParams(test = "1"), perPage = 2) {
+            if (it.first)
+                Observable.just(listOf(TestEntity(1, it.extra!!.test), TestEntity(2, it.extra!!.test + "1")))
+            else
+                Observable.just(listOf(TestEntity(4, it.extra!!.test)))
+        }
+
+        assertEquals(page0.page, 0)
+        page0.next()
+        assertEquals(page0.page, PAGINATOR_END)
+    }
 }
