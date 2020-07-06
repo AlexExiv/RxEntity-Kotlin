@@ -34,7 +34,7 @@ open class ArrayObservableExtra<K: Comparable<K>, E: Entity<K>, Extra>(holder: E
         //assert( queue.operationQueue == OperationQueue.current, "Single observable can be updated only from the same queue with the parent collection" )
 
         val i = entities?.indexOfFirst { it._key == entity._key }
-        if (i != null && source != uuid)
+        if (i != null && i != -1 && source != uuid)
         {
             val entities = this.entities!!.toMutableList()
             entities[i] = entity
