@@ -3,6 +3,7 @@ package com.speakerboxlite.rxentity
 import io.reactivex.Observable
 import io.reactivex.Scheduler
 import io.reactivex.Single
+import io.reactivex.functions.BiFunction
 import io.reactivex.subjects.PublishSubject
 import java.lang.ref.WeakReference
 
@@ -22,7 +23,8 @@ class SingleObservableCollectionExtra<K: Comparable<K>, E: Entity<K>, Extra, Col
                                                                                               extra: Extra? = null,
                                                                                               collectionExtra: CollectionExtra? = null,
                                                                                               start: Boolean = true,
-                                                                                              fetch: SingleFetchCallback<K, E, Extra, CollectionExtra>): SingleObservableExtra<K, E, Extra>(holder, queue, key, extra)
+                                                                                              mergeSources: List<MergeSource<E, Any>> = listOf(),
+                                                                                              fetch: SingleFetchCallback<K, E, Extra, CollectionExtra>): SingleObservableExtra<K, E, Extra>(holder, queue, key, extra, mergeSources)
 {
     private val _rxRefresh = PublishSubject.create<SingleParams<K, E, Extra, CollectionExtra>>()
     private var started = false
@@ -30,8 +32,8 @@ class SingleObservableCollectionExtra<K: Comparable<K>, E: Entity<K>, Extra, Col
     var collectionExtra: CollectionExtra? = collectionExtra
         private set
 
-    constructor(holder: EntityCollection<K, E>, queue: Scheduler, collectionExtra: CollectionExtra? = null, initial: E, fetch: SingleFetchCallback<K, E, Extra, CollectionExtra> ):
-            this(holder = holder, queue = queue, key = initial._key, collectionExtra = collectionExtra, start = false, fetch = fetch)
+    constructor(holder: EntityCollection<K, E>, queue: Scheduler, collectionExtra: CollectionExtra? = null, initial: E, mergeSources: List<MergeSource<E, Any>> = listOf(), fetch: SingleFetchCallback<K, E, Extra, CollectionExtra> ):
+            this(holder = holder, queue = queue, key = initial._key, collectionExtra = collectionExtra, start = false, mergeSources = mergeSources, fetch = fetch)
     {
         rxPublish.onNext(initial)
         started = true
@@ -40,7 +42,7 @@ class SingleObservableCollectionExtra<K: Comparable<K>, E: Entity<K>, Extra, Col
     init
     {
         val weak = WeakReference(this)
-        dispBag.add(_rxRefresh
+        var obs = _rxRefresh
             .doOnNext { weak.get()?.rxLoader?.onNext( true ) }
             .switchMap {
                 e: SingleParams<K, E, Extra, CollectionExtra> ->
@@ -50,13 +52,15 @@ class SingleObservableCollectionExtra<K: Comparable<K>, E: Entity<K>, Extra, Col
                         t: Throwable ->
                         weak.get()?.rxError?.onNext(t)
                         weak.get()?.rxLoader?.onNext( false )
-                        Observable.empty<E>()
+                        empty<E>()
                     }
             }
             .doOnNext { weak.get()?.rxLoader?.onNext( false ) }
-            .switchMap { weak.get()?.collection?.get()?.RxUpdate(entity = it)?.toObservable() ?: Observable.empty<E>() }
-            .observeOn( queue )
-            .subscribe { weak.get()?.rxPublish?.onNext(it) })
+            .switchMap { weak.get()?.collection?.get()?.RxUpdate(entity = it)?.toObservable() ?: empty<E>() }
+            .observeOn(queue)
+
+        mergeSources.forEach { obs = combineLatest(obs, it.source, it.merge) }
+        dispBag.add(obs.subscribe { weak.get()?.rxPublish?.onNext(it) })
 
         if (start)
         {
@@ -78,6 +82,11 @@ class SingleObservableCollectionExtra<K: Comparable<K>, E: Entity<K>, Extra, Col
     override fun refreshData(resetCache: Boolean, data: Any?)
     {
         _collectionRefresh(resetCache = resetCache, collectionExtra = data as? CollectionExtra)
+    }
+
+    fun <T> mergeWith(observable: Observable<T>, merge: (E, T) -> E)
+    {
+
     }
 
     fun collectionRefresh(resetCache: Boolean = false, extra: Extra? = null, collectionExtra: CollectionExtra? = null)

@@ -8,7 +8,8 @@ import io.reactivex.subjects.PublishSubject
 import java.lang.ref.WeakReference
 import java.util.*
 
-abstract class EntityObservable<K: Comparable<K>, E: Entity<K>, EL>(holder: EntityCollection<K, E>): Observable<EL>()
+abstract class EntityObservable<K: Comparable<K>, E: Entity<K>, EL>(holder: EntityCollection<K, E>,
+                                                                    val mergeSources: List<MergeSource<E, Any>> = listOf()): Observable<EL>()
 {
     val rxLoader = BehaviorSubject.createDefault(false)
     val rxError = PublishSubject.create<Throwable>()

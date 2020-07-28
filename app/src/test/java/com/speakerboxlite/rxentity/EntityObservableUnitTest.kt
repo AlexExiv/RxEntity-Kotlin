@@ -420,4 +420,82 @@ class EntityObservableUnitTest
         page0.next()
         assertEquals(page0.page, PAGINATOR_END)
     }
+
+    @Test
+    fun testMergeWithSingle()
+    {
+        val collection = EntityObservableCollectionInt<TestEntity>(Schedulers.trampoline())
+        val rxObs = BehaviorSubject.createDefault("2")
+        val rxObs1 = BehaviorSubject.createDefault("3")
+        collection.mergeWith(rxObs) { e, t -> e.copy(value = t) }
+        collection.mergeWith(rxObs1) { e, t -> e.copy(value = t) }
+        val single0 = collection.createSingle(1) { Observable.just(TestEntity(1, "1")) }
+
+        var disp = single0.subscribe {
+            assertEquals(it.id, 1)
+            assertEquals(it.value, "3")
+        }
+        disp.dispose()
+
+        rxObs.onNext("4")
+        rxObs1.onNext("4")
+        disp = single0.subscribe {
+            assertEquals(it.id, 1)
+            assertEquals(it.value, "4")
+        }
+        disp.dispose()
+
+        rxObs1.onNext("5")
+        disp = single0.subscribe {
+            assertEquals(it.id, 1)
+            assertEquals(it.value, "5")
+        }
+        disp.dispose()
+    }
+
+    @Test
+    fun testMergeWithPaginator()
+    {
+        val collection = EntityObservableCollectionInt<TestEntity>(Schedulers.trampoline())
+        val rxObs = BehaviorSubject.createDefault("2")
+        val rxObs1 = BehaviorSubject.createDefault("3")
+        collection.mergeWith(rxObs) { e, t -> e.copy(value = "${e.id}$t") }
+        collection.mergeWith(rxObs1) { e, t -> e.copy(value = "${e.id}$t") }
+        val pager = collection.createPaginator(perPage = 2) {
+            if (it.page == 0)
+                Observable.just(listOf(TestEntity(1, "1"), TestEntity(2, "1")))
+            else
+                Observable.just(listOf(TestEntity(3, "1"), TestEntity(4, "1")))
+        }
+
+        var disp = pager.subscribe {
+            assertEquals(it.size, 2)
+            assertEquals(it[0].id, 1)
+            assertEquals(it[0].value, "13")
+        }
+        disp.dispose()
+
+        rxObs.onNext("4")
+        rxObs1.onNext("4")
+        disp = pager.subscribe {
+            assertEquals(it[0].id, 1)
+            assertEquals(it[0].value, "14")
+        }
+        disp.dispose()
+
+        rxObs1.onNext("5")
+        disp = pager.subscribe {
+            assertEquals(it[0].id, 1)
+            assertEquals(it[0].value, "15")
+        }
+        disp.dispose()
+
+        pager.next()
+        disp = pager.subscribe {
+            assertEquals(it.size, 4)
+            assertEquals(it[2].id, 3)
+            assertEquals(it[2].value, "35")
+        }
+        disp.dispose()
+    }
 }

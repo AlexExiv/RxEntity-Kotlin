@@ -9,7 +9,8 @@ import io.reactivex.subjects.BehaviorSubject
 open class SingleObservableExtra<K: Comparable<K>, E: Entity<K>, Extra>(holder: EntityCollection<K, E>,
                                                                         val queue: Scheduler,
                                                                         key: K? = null,
-                                                                        extra: Extra? = null): EntityObservable<K, E, E>(holder)
+                                                                        extra: Extra? = null,
+                                                                        mergeSources: List<MergeSource<E, Any>> = listOf()): EntityObservable<K, E, E>(holder, mergeSources)
 {
     protected val rxPublish = BehaviorSubject.create<E>()
 

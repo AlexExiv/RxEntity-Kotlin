@@ -3,7 +3,11 @@ package com.speakerboxlite.rxentity
 import io.reactivex.Observable
 import io.reactivex.Scheduler
 import io.reactivex.Single
+import io.reactivex.functions.BiFunction
 import java.lang.ref.WeakReference
+
+data class MergeSource<E, T>(val source: Observable<T>,
+                             val merge: BiFunction<E, Any?, E>)
 
 class EntityObservableCollectionExtra<K: Comparable<K>, E: Entity<K>, CollectionExtra>(queue: Scheduler, collectionExtra: CollectionExtra? = null): EntityCollection<K, E>(queue)
 {
@@ -12,6 +16,8 @@ class EntityObservableCollectionExtra<K: Comparable<K>, E: Entity<K>, Collection
 
     var singleFetchCallback: SingleFetchCallback<K, E, EntityCollectionExtraParamsEmpty, CollectionExtra>? = null
     var arrayFetchCallback: PageFetchCallback<K, E, EntityCollectionExtraParamsEmpty, CollectionExtra>? = null
+
+    protected val mergeSources = mutableListOf<MergeSource<E, Any>>()
 
     /**
      *
@@ -22,7 +28,7 @@ class EntityObservableCollectionExtra<K: Comparable<K>, E: Entity<K>, Collection
     override fun createSingle(initial: E): SingleObservable<K, E>
     {
         assert(singleFetchCallback != null) { "To create Single with initial value you must specify singleFetchCallback before" }
-        return SingleObservableCollectionExtra(holder = this, queue = queue, collectionExtra = collectionExtra, initial = initial, fetch = singleFetchCallback!!)
+        return SingleObservableCollectionExtra(holder = this, queue = queue, collectionExtra = collectionExtra, initial = initial, mergeSources = mergeSources, fetch = singleFetchCallback!!)
     }
 
     /**
@@ -47,7 +53,7 @@ class EntityObservableCollectionExtra<K: Comparable<K>, E: Entity<K>, Collection
      */
     fun createSingle(key: K? = null, start: Boolean = true, fetch: SingleFetchCallback<K, E, EntityCollectionExtraParamsEmpty, CollectionExtra>): SingleObservable<K, E>
     {
-        return SingleObservableCollectionExtra(holder = this, queue = queue, key = key, collectionExtra = collectionExtra, start = start, fetch = fetch)
+        return SingleObservableCollectionExtra(holder = this, queue = queue, key = key, collectionExtra = collectionExtra, start = start, mergeSources = mergeSources, fetch = fetch)
     }
 
     /**
@@ -67,7 +73,7 @@ class EntityObservableCollectionExtra<K: Comparable<K>, E: Entity<K>, Collection
     override fun createArray(initial: List<E>): ArrayObservable<K, E>
     {
         assert(arrayFetchCallback != null) { "To create Array with initial values you must specify arrayFetchCallback before" }
-        return PaginatorObservableCollectionExtra(holder = this, queue = queue, collectionExtra = collectionExtra, initial = initial, fetch = arrayFetchCallback!!)
+        return PaginatorObservableCollectionExtra(holder = this, queue = queue, collectionExtra = collectionExtra, initial = initial, mergeSources = mergeSources, fetch = arrayFetchCallback!!)
     }
 
     fun createArray(keys: List<K>, start: Boolean = true): ArrayObservable<K, E>
@@ -78,22 +84,27 @@ class EntityObservableCollectionExtra<K: Comparable<K>, E: Entity<K>, Collection
 
     fun createArray(keys: List<K> = listOf(), start: Boolean = true, fetch: PageFetchCallback<K, E, EntityCollectionExtraParamsEmpty, CollectionExtra>): ArrayObservable<K, E>
     {
-        return PaginatorObservableCollectionExtra(holder = this, queue = queue, keys = keys, collectionExtra = collectionExtra, start = start, fetch = fetch)
+        return PaginatorObservableCollectionExtra(holder = this, queue = queue, keys = keys, collectionExtra = collectionExtra, start = start, mergeSources = mergeSources, fetch = fetch)
     }
 
     fun <Extra> createArrayExtra(keys: List<K> = listOf(), extra: Extra? = null, start: Boolean = true, fetch: PageFetchCallback<K, E, Extra, CollectionExtra>): ArrayObservableExtra<K, E, Extra>
     {
-        return PaginatorObservableCollectionExtra(holder = this, queue = queue, keys = keys, extra = extra, collectionExtra = collectionExtra, start = start, fetch = fetch)
+        return PaginatorObservableCollectionExtra(holder = this, queue = queue, keys = keys, extra = extra, collectionExtra = collectionExtra, start = start, mergeSources = mergeSources, fetch = fetch)
     }
 
     fun createPaginator(perPage: Int = 35, start: Boolean = true, fetch: PageFetchCallback<K, E, EntityCollectionExtraParamsEmpty, CollectionExtra>): PaginatorObservable<K, E>
     {
-        return PaginatorObservableCollectionExtra(holder = this, queue = queue, collectionExtra = collectionExtra, perPage = perPage, start = start, fetch = fetch)
+        return PaginatorObservableCollectionExtra(holder = this, queue = queue, collectionExtra = collectionExtra, perPage = perPage, start = start, mergeSources = mergeSources, fetch = fetch)
     }
 
     fun <Extra> createPaginatorExtra(extra: Extra? = null, perPage: Int = 35, start: Boolean = true, fetch: PageFetchCallback<K, E, Extra, CollectionExtra>): PaginatorObservableExtra<K, E, Extra>
     {
-        return PaginatorObservableCollectionExtra(holder = this, queue = queue, extra = extra, collectionExtra = collectionExtra, perPage = perPage, start = start, fetch = fetch)
+        return PaginatorObservableCollectionExtra(holder = this, queue = queue, extra = extra, collectionExtra = collectionExtra, perPage = perPage, start = start, mergeSources = mergeSources, fetch = fetch)
+    }
+
+    fun <T> mergeWith(source: Observable<T>, merge: (E, T) -> E)
+    {
+        mergeSources.add(MergeSource(source, BiFunction<E, Any?, E> { e, t -> merge(e, t as T) }) as MergeSource<E, Any>)
     }
 
     fun RxRequestForUpdate(source: String = "", key: K, update: (E) -> E): Single<Optional<E>>

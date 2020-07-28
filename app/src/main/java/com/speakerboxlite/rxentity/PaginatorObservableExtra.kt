@@ -8,7 +8,8 @@ open class PaginatorObservableExtra<K: Comparable<K>, E: Entity<K>, Extra>(holde
                                                                            queue: Scheduler,
                                                                            keys: List<K> = listOf(),
                                                                            perPage: Int,
-                                                                           extra: Extra? = null): ArrayObservableExtra<K, E, Extra>(holder, queue, keys, extra)
+                                                                           extra: Extra? = null,
+                                                                           mergeSources: List<MergeSource<E, Any>> = listOf()): ArrayObservableExtra<K, E, Extra>(holder, queue, keys, extra, mergeSources)
 {
     init
     {

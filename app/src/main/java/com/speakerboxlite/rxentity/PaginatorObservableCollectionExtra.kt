@@ -3,6 +3,7 @@ package com.speakerboxlite.rxentity
 import io.reactivex.Observable
 import io.reactivex.Scheduler
 import io.reactivex.Single
+import io.reactivex.functions.BiFunction
 import io.reactivex.subjects.PublishSubject
 import java.lang.ref.WeakReference
 
@@ -24,7 +25,8 @@ class PaginatorObservableCollectionExtra<K: Comparable<K>, E: Entity<K>, Extra, 
                                                                                                  collectionExtra: CollectionExtra? = null,
                                                                                                  perPage: Int = 35,
                                                                                                  start: Boolean = true,
-                                                                                                 fetch: PageFetchCallback<K, E, Extra, CollectionExtra>): PaginatorObservableExtra<K, E, Extra>(holder, queue, keys, perPage, extra)
+                                                                                                 mergeSources: List<MergeSource<E, Any>> = listOf(),
+                                                                                                 fetch: PageFetchCallback<K, E, Extra, CollectionExtra>): PaginatorObservableExtra<K, E, Extra>(holder, queue, keys, perPage, extra, mergeSources)
 {
     protected val rxPage = PublishSubject.create<PageParams<K, Extra, CollectionExtra>>()
 
@@ -32,8 +34,8 @@ class PaginatorObservableCollectionExtra<K: Comparable<K>, E: Entity<K>, Extra, 
         protected set
     protected var started = false
 
-    constructor(holder: EntityCollection<K, E>, queue: Scheduler, collectionExtra: CollectionExtra? = null, initial: List<E>, fetch: PageFetchCallback<K, E, Extra, CollectionExtra> ):
-            this(holder = holder, queue = queue, keys = initial.map { it._key }, collectionExtra = collectionExtra, start = false, fetch = fetch)
+    constructor(holder: EntityCollection<K, E>, queue: Scheduler, collectionExtra: CollectionExtra? = null, initial: List<E>, mergeSources: List<MergeSource<E, Any>> = listOf(), fetch: PageFetchCallback<K, E, Extra, CollectionExtra> ):
+            this(holder = holder, queue = queue, keys = initial.map { it._key }, collectionExtra = collectionExtra, start = false, mergeSources = mergeSources, fetch = fetch)
     {
         rxPublish.onNext(initial)
         started = true
@@ -43,7 +45,7 @@ class PaginatorObservableCollectionExtra<K: Comparable<K>, E: Entity<K>, Extra, 
     init
     {
         val weak = WeakReference(this)
-        dispBag.add(rxPage
+        var obs = rxPage
                 .filter { it.page >= 0 }
                 .doOnNext { weak.get()?.rxLoader?.onNext(true) }
                 .switchMap {
@@ -54,11 +56,13 @@ class PaginatorObservableCollectionExtra<K: Comparable<K>, E: Entity<K>, Extra, 
                             return@onErrorReturn listOf<E>()
                         }
                 }
-                .flatMap { weak.get()?.collection?.get()?.RxUpdate(source = weak.get()?.uuid ?: "", entities = it)?.toObservable() ?: Observable.just(listOf()) }
+                .flatMap { weak.get()?.collection?.get()?.RxUpdate(source = weak.get()?.uuid ?: "", entities = it)?.toObservable() ?: just(listOf()) }
                 .observeOn(queue)
                 .map { weak.get()?.append(entities = it) ?: listOf() }
                 .doOnNext { weak.get()?.rxLoader?.onNext(false) }
-                .subscribe {weak.get()?.rxPublish?.onNext(it) })
+
+        mergeSources.forEach { ms -> obs = combineLatest(obs, ms.source, BiFunction { es, t -> es.map { ms.merge.apply(it, t) } }) }
+        dispBag.add(obs.subscribe { weak.get()?.rxPublish?.onNext(it) })
 
         if (start)
         {
