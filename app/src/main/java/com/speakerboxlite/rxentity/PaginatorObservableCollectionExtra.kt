@@ -4,6 +4,7 @@ import io.reactivex.Observable
 import io.reactivex.Scheduler
 import io.reactivex.Single
 import io.reactivex.functions.BiFunction
+import io.reactivex.subjects.BehaviorSubject
 import io.reactivex.subjects.PublishSubject
 import java.lang.ref.WeakReference
 
@@ -29,6 +30,7 @@ class PaginatorObservableCollectionExtra<K: Comparable<K>, E: Entity<K>, Extra, 
                                                                                                  fetch: PageFetchCallback<K, E, Extra, CollectionExtra>): PaginatorObservableExtra<K, E, Extra>(holder, queue, keys, perPage, extra, mergeSources)
 {
     protected val rxPage = PublishSubject.create<PageParams<K, Extra, CollectionExtra>>()
+    protected val rxMiddleware = BehaviorSubject.create<List<E>>()
 
     var collectionExtra: CollectionExtra? = collectionExtra
         protected set
@@ -37,7 +39,7 @@ class PaginatorObservableCollectionExtra<K: Comparable<K>, E: Entity<K>, Extra, 
     constructor(holder: EntityCollection<K, E>, queue: Scheduler, collectionExtra: CollectionExtra? = null, initial: List<E>, mergeSources: List<MergeSource<E, Any>> = listOf(), fetch: PageFetchCallback<K, E, Extra, CollectionExtra> ):
             this(holder = holder, queue = queue, keys = initial.map { it._key }, collectionExtra = collectionExtra, start = false, mergeSources = mergeSources, fetch = fetch)
     {
-        rxPublish.onNext(initial)
+        rxMiddleware.onNext(initial)
         started = true
         page = PAGINATOR_END
     }
@@ -61,6 +63,8 @@ class PaginatorObservableCollectionExtra<K: Comparable<K>, E: Entity<K>, Extra, 
                 .map { weak.get()?.append(entities = it) ?: listOf() }
                 .doOnNext { weak.get()?.rxLoader?.onNext(false) }
 
+        dispBag.add(obs.subscribe { weak.get()?.rxMiddleware?.onNext(it) })
+        obs = rxMiddleware
         mergeSources.forEach { ms -> obs = combineLatest(obs, ms.source, BiFunction { es, t -> es.map { ms.merge.apply(it, t) } }) }
         dispBag.add(obs.subscribe { weak.get()?.rxPublish?.onNext(it) })
 

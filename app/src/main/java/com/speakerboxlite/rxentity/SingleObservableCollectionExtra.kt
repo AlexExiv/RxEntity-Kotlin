@@ -4,6 +4,7 @@ import io.reactivex.Observable
 import io.reactivex.Scheduler
 import io.reactivex.Single
 import io.reactivex.functions.BiFunction
+import io.reactivex.subjects.BehaviorSubject
 import io.reactivex.subjects.PublishSubject
 import java.lang.ref.WeakReference
 
@@ -26,6 +27,7 @@ class SingleObservableCollectionExtra<K: Comparable<K>, E: Entity<K>, Extra, Col
                                                                                               mergeSources: List<MergeSource<E, Any>> = listOf(),
                                                                                               fetch: SingleFetchCallback<K, E, Extra, CollectionExtra>): SingleObservableExtra<K, E, Extra>(holder, queue, key, extra, mergeSources)
 {
+    protected val rxMiddleware = BehaviorSubject.create<E>()
     private val _rxRefresh = PublishSubject.create<SingleParams<K, E, Extra, CollectionExtra>>()
     private var started = false
 
@@ -35,7 +37,7 @@ class SingleObservableCollectionExtra<K: Comparable<K>, E: Entity<K>, Extra, Col
     constructor(holder: EntityCollection<K, E>, queue: Scheduler, collectionExtra: CollectionExtra? = null, initial: E, mergeSources: List<MergeSource<E, Any>> = listOf(), fetch: SingleFetchCallback<K, E, Extra, CollectionExtra> ):
             this(holder = holder, queue = queue, key = initial._key, collectionExtra = collectionExtra, start = false, mergeSources = mergeSources, fetch = fetch)
     {
-        rxPublish.onNext(initial)
+        rxMiddleware.onNext(initial)
         started = true
     }
 
@@ -59,6 +61,8 @@ class SingleObservableCollectionExtra<K: Comparable<K>, E: Entity<K>, Extra, Col
             .switchMap { weak.get()?.collection?.get()?.RxUpdate(entity = it)?.toObservable() ?: empty<E>() }
             .observeOn(queue)
 
+        dispBag.add(obs.subscribe { weak.get()?.rxMiddleware?.onNext(it) })
+        obs = rxMiddleware
         mergeSources.forEach { obs = combineLatest(obs, it.source, it.merge) }
         dispBag.add(obs.subscribe { weak.get()?.rxPublish?.onNext(it) })
 

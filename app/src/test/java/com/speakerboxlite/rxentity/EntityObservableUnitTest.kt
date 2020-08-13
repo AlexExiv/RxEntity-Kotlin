@@ -498,4 +498,44 @@ class EntityObservableUnitTest
         }
         disp.dispose()
     }
+
+    @Test
+    fun testArrayInitialMerge()
+    {
+        var i = 0
+        val collection = EntityObservableCollectionExtraInt<TestEntity, ExtraCollectionParams>(Schedulers.trampoline(), collectionExtra = ExtraCollectionParams(test="2"))
+
+        val rxObs = BehaviorSubject.createDefault("2")
+        val rxObs1 = BehaviorSubject.createDefault("3")
+        collection.mergeWith(rxObs) { e, t -> e.copy(value = "${e.id}$t") }
+        collection.mergeWith(rxObs1) { e, t -> e.copy(value = "${e.id}$t") }
+
+        collection.arrayFetchCallback = { pp ->
+            Observable.just(listOf())
+        }
+
+        val array = collection.createArray(initial = listOf(TestEntity(1, "2"), TestEntity(2, "3")))
+        
+        var disp = array.subscribe {
+            assertEquals(it.size, 2)
+            assertEquals(it[0].id, 1)
+            assertEquals(it[0].value, "13")
+        }
+        disp.dispose()
+
+        rxObs.onNext("4")
+        rxObs1.onNext("4")
+        disp = array.subscribe {
+            assertEquals(it[0].id, 1)
+            assertEquals(it[0].value, "14")
+        }
+        disp.dispose()
+
+        rxObs1.onNext("5")
+        disp = array.subscribe {
+            assertEquals(it[0].id, 1)
+            assertEquals(it[0].value, "15")
+        }
+        disp.dispose()
+    }
 }
