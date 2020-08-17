@@ -58,7 +58,7 @@ class SingleObservableCollectionExtra<K: Comparable<K>, E: Entity<K>, Extra, Col
                     }
             }
             .doOnNext { weak.get()?.rxLoader?.onNext( false ) }
-            .switchMap { weak.get()?.collection?.get()?.RxUpdate(entity = it)?.toObservable() ?: empty<E>() }
+            //.switchMap { weak.get()?.collection?.get()?.RxUpdate(entity = it)?.toObservable() ?: empty<E>() }
             .observeOn(queue)
 
         dispBag.add(obs.subscribe { weak.get()?.rxMiddleware?.onNext(it) })

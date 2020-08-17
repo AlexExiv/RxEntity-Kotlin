@@ -58,7 +58,7 @@ class PaginatorObservableCollectionExtra<K: Comparable<K>, E: Entity<K>, Extra, 
                             return@onErrorReturn listOf<E>()
                         }
                 }
-                .flatMap { weak.get()?.collection?.get()?.RxUpdate(source = weak.get()?.uuid ?: "", entities = it)?.toObservable() ?: just(listOf()) }
+                //.flatMap { weak.get()?.collection?.get()?.RxUpdate(source = weak.get()?.uuid ?: "", entities = it)?.toObservable() ?: just(listOf()) }
                 .observeOn(queue)
                 .map { weak.get()?.append(entities = it) ?: listOf() }
                 .doOnNext { weak.get()?.rxLoader?.onNext(false) }
