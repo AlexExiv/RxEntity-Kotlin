@@ -4,6 +4,11 @@ import io.reactivex.Observable
 import io.reactivex.Scheduler
 import io.reactivex.Single
 import io.reactivex.functions.BiFunction
+import io.reactivex.functions.Function3
+import io.reactivex.functions.Function4
+import io.reactivex.functions.Function5
+import io.reactivex.functions.Function6
+import io.reactivex.functions.Function7
 import io.reactivex.subjects.BehaviorSubject
 import io.reactivex.subjects.PublishSubject
 import java.lang.ref.WeakReference
@@ -26,8 +31,8 @@ class PaginatorObservableCollectionExtra<K: Comparable<K>, E: Entity<K>, Extra, 
                                                                                                  collectionExtra: CollectionExtra? = null,
                                                                                                  perPage: Int = 35,
                                                                                                  start: Boolean = true,
-                                                                                                 mergeSources: List<MergeSource<E, Any>> = listOf(),
-                                                                                                 fetch: PageFetchCallback<K, E, Extra, CollectionExtra>): PaginatorObservableExtra<K, E, Extra>(holder, queue, keys, perPage, extra, mergeSources)
+                                                                                                 combineSources: List<CombineSource<E>> = listOf(),
+                                                                                                 fetch: PageFetchCallback<K, E, Extra, CollectionExtra>): PaginatorObservableExtra<K, E, Extra>(holder, queue, keys, perPage, extra, combineSources)
 {
     protected val rxPage = PublishSubject.create<PageParams<K, Extra, CollectionExtra>>()
     protected val rxMiddleware = BehaviorSubject.create<List<E>>()
@@ -36,8 +41,8 @@ class PaginatorObservableCollectionExtra<K: Comparable<K>, E: Entity<K>, Extra, 
         protected set
     protected var started = false
 
-    constructor(holder: EntityCollection<K, E>, queue: Scheduler, collectionExtra: CollectionExtra? = null, initial: List<E>, mergeSources: List<MergeSource<E, Any>> = listOf(), fetch: PageFetchCallback<K, E, Extra, CollectionExtra> ):
-            this(holder = holder, queue = queue, keys = initial.map { it._key }, collectionExtra = collectionExtra, start = false, mergeSources = mergeSources, fetch = fetch)
+    constructor(holder: EntityCollection<K, E>, queue: Scheduler, collectionExtra: CollectionExtra? = null, initial: List<E>, combineSources: List<CombineSource<E>> = listOf(), fetch: PageFetchCallback<K, E, Extra, CollectionExtra> ):
+            this(holder = holder, queue = queue, keys = initial.map { it._key }, collectionExtra = collectionExtra, start = false, combineSources = combineSources, fetch = fetch)
     {
         rxMiddleware.onNext(initial)
         started = true
@@ -58,14 +63,25 @@ class PaginatorObservableCollectionExtra<K: Comparable<K>, E: Entity<K>, Extra, 
                             return@onErrorReturn listOf<E>()
                         }
                 }
-                //.flatMap { weak.get()?.collection?.get()?.RxUpdate(source = weak.get()?.uuid ?: "", entities = it)?.toObservable() ?: just(listOf()) }
+                .switchMap { weak.get()?.collection?.get()?.RxUpdate(source = weak.get()?.uuid ?: "", entities = it)?.toObservable() ?: just(listOf()) }
                 .observeOn(queue)
                 .map { weak.get()?.append(entities = it) ?: listOf() }
                 .doOnNext { weak.get()?.rxLoader?.onNext(false) }
 
         dispBag.add(obs.subscribe { weak.get()?.rxMiddleware?.onNext(it) })
         obs = rxMiddleware
-        mergeSources.forEach { ms -> obs = combineLatest(obs, ms.source, BiFunction { es, t -> es.map { ms.merge.apply(it, t) } }) }
+        combineSources.forEach { ms ->
+            obs = when (ms.sources.size)
+            {
+                1 -> combineLatest(obs, ms.sources[0], BiFunction { es, t -> es.map { ms.combine.apply(it, arrayOf(t)) } })
+                2 -> combineLatest(obs, ms.sources[0], ms.sources[1], Function3 { es, t0, t1 -> es.map { ms.combine.apply(it, arrayOf(t0, t1)) } })
+                3 -> combineLatest(obs, ms.sources[0], ms.sources[1], ms.sources[2], Function4 { es, t0, t1, t2 -> es.map { ms.combine.apply(it, arrayOf(t0, t1, t2)) } })
+                4 -> combineLatest(obs, ms.sources[0], ms.sources[1], ms.sources[2], ms.sources[3], Function5 { es, t0, t1, t2, t3 -> es.map { ms.combine.apply(it, arrayOf(t0, t1, t2, t3)) } })
+                5 -> combineLatest(obs, ms.sources[0], ms.sources[1], ms.sources[2], ms.sources[3], ms.sources[4], Function6 { es, t0, t1, t2, t3, t4 -> es.map { ms.combine.apply(it, arrayOf(t0, t1, t2, t3, t4)) } })
+                6 -> combineLatest(obs, ms.sources[0], ms.sources[1], ms.sources[2], ms.sources[3], ms.sources[4], ms.sources[5], Function7 { es, t0, t1, t2, t3, t4, t5 -> es.map { ms.combine.apply(it, arrayOf(t0, t1, t2, t3, t4, t5)) } })
+                else -> combineLatest(obs, ms.sources[0], BiFunction { es, t -> es.map { ms.combine.apply(it, arrayOf(t)) } })
+            }
+        }
         dispBag.add(obs.subscribe { weak.get()?.rxPublish?.onNext(it) })
 
         if (start)

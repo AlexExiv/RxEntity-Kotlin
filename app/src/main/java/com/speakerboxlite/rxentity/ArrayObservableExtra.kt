@@ -9,7 +9,7 @@ open class ArrayObservableExtra<K: Comparable<K>, E: Entity<K>, Extra>(holder: E
                                                                        val queue: Scheduler,
                                                                        keys: List<K> = listOf(),
                                                                        extra: Extra? = null,
-                                                                       mergeSources: List<MergeSource<E, Any>> = listOf()): EntityObservable<K, E, List<E>>(holder, mergeSources)
+                                                                       combineSources: List<CombineSource<E>> = listOf()): EntityObservable<K, E, List<E>>(holder, combineSources)
 {
     protected val rxPublish = BehaviorSubject.create<List<E>>()
 

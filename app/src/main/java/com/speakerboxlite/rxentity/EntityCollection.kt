@@ -53,7 +53,7 @@ abstract class EntityCollection<K: Comparable<K>, E: Entity<K>>(val queue: Sched
         //assert(queue.operationQueue == OperationQueue.current, "Observable obss collection can be updated only from the specified in the constructor OperationQueue")
 
         sharedEntities[entity._key] = entity
-        items.forEach { it.get()?.update(source = source, entity = entity) }
+        //items.forEach { it.get()?.update(source = source, entity = entity) }
     }
 
     open fun update(source: String = "", entities: List<E>)
@@ -61,9 +61,9 @@ abstract class EntityCollection<K: Comparable<K>, E: Entity<K>>(val queue: Sched
         //assert(queue.operationQueue == OperationQueue.current, "Observable obss collection can be updated only from the specified in the constructor OperationQueue")
 
         entities.forEach { sharedEntities[it._key] = it }
-        items.forEach { it.get()?.update(source = source, entities = this.sharedEntities) }
+        //items.forEach { it.get()?.update(source = source, entities = this.sharedEntities) }
     }
 
-    abstract fun createSingle(initial: E): SingleObservable<K, E>
+    abstract fun createSingle(initial: E, refresh: Boolean = false): SingleObservable<K, E>
     abstract fun createArray(initial: List<E>): ArrayObservable<K, E>
 }

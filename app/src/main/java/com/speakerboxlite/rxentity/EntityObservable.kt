@@ -1,7 +1,6 @@
 package com.speakerboxlite.rxentity
 
 import io.reactivex.Observable
-import io.reactivex.Observer
 import io.reactivex.disposables.CompositeDisposable
 import io.reactivex.subjects.BehaviorSubject
 import io.reactivex.subjects.PublishSubject
@@ -9,7 +8,7 @@ import java.lang.ref.WeakReference
 import java.util.*
 
 abstract class EntityObservable<K: Comparable<K>, E: Entity<K>, EL>(holder: EntityCollection<K, E>,
-                                                                    val mergeSources: List<MergeSource<E, Any>> = listOf()): Observable<EL>()
+                                                                    val combineSources: List<CombineSource<E>> = listOf()): Observable<EL>()
 {
     val rxLoader = BehaviorSubject.createDefault(false)
     val rxError = PublishSubject.create<Throwable>()
