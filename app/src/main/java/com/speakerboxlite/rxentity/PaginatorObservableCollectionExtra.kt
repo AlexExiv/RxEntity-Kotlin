@@ -133,6 +133,7 @@ class PaginatorObservableCollectionExtra<K: Comparable<K>, E: Entity<K>, Extra, 
     {
         //assert( queue.operationQueue == OperationQueue.current, "_Refresh can be updated only from the specified in the constructor OperationQueue" )
 
+        rxMiddleware.onNext(listOf())
         super._refresh(resetCache = resetCache, extra = extra)
         this.collectionExtra = collectionExtra ?: this.collectionExtra
         rxPage.onNext(PageParams(page = page + 1, perPage = perPage, refreshing = true, resetCache = resetCache, first = !started, keys = keys, extra = this.extra, collectionExtra = this.collectionExtra))
