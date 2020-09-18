@@ -1,6 +1,5 @@
 package com.speakerboxlite.rxentity
 
-import io.reactivex.Observable
 import io.reactivex.Scheduler
 import io.reactivex.Single
 import io.reactivex.functions.BiFunction
@@ -22,7 +21,7 @@ data class PageParams<K, Extra, CollectionExtra>(val page: Int,
                                               val extra: Extra? = null,
                                               val collectionExtra: CollectionExtra? = null)
 
-typealias PageFetchCallback<K, E, Extra, CollectionExtra> = (PageParams<K, Extra, CollectionExtra>) -> Observable<List<E>>
+typealias PageFetchCallback<K, E, Extra, CollectionExtra> = (PageParams<K, Extra, CollectionExtra>) -> Single<List<E>>
 
 class PaginatorObservableCollectionExtra<K: Comparable<K>, E: Entity<K>, Extra, CollectionExtra>(holder: EntityCollection<K, E>,
                                                                                                  queue: Scheduler,
@@ -57,6 +56,7 @@ class PaginatorObservableCollectionExtra<K: Comparable<K>, E: Entity<K>, Extra, 
                 .doOnNext { weak.get()?.rxLoader?.onNext(true) }
                 .switchMap {
                     fetch(it)
+                        .toObservable()
                         .doOnNext { this.keys = it.map { it._key } }
                         .onErrorReturn {
                             weak.get()?.rxError?.onNext(it)
