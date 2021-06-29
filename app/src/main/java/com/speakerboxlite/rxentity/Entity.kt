@@ -14,11 +14,19 @@ interface EntityBack<Key: Comparable<Key>>
     val _key: Key
 }
 
-typealias EntityBackInt = Entity<Int>
-typealias EntityBackLong = Entity<Long>
-typealias EntityBackString = Entity<String>
+typealias EntityBackInt = EntityBack<Int>
+typealias EntityBackLong = EntityBack<Long>
+typealias EntityBackString = EntityBack<String>
 
-interface EntityBackToEntityMapper<Key: Comparable<Key>, Source: EntityBack<Key>, Dest: Entity<Key>>
+interface EntityFactory<Key: Comparable<Key>, Source: EntityBack<Key>, Dest: Entity<Key>>
+{
+    fun map(entity: Source): Dest
+    {
+        throw IllegalArgumentException("${entity::class} is not convertible to ${this::class}")
+    }
+}
+
+interface EntityBackFactory<Key: Comparable<Key>, Source: EntityBack<Key>, Dest: EntityBack<Key>>
 {
     fun map(entity: Source): Dest
     {

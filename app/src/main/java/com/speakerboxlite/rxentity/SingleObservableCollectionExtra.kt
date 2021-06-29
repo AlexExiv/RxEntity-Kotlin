@@ -2,14 +2,9 @@ package com.speakerboxlite.rxentity
 
 import io.reactivex.Scheduler
 import io.reactivex.Single
-import io.reactivex.functions.BiFunction
-import io.reactivex.functions.Function3
-import io.reactivex.functions.Function4
-import io.reactivex.functions.Function5
-import io.reactivex.functions.Function6
-import io.reactivex.functions.Function7
 import io.reactivex.subjects.BehaviorSubject
 import io.reactivex.subjects.PublishSubject
+import java.lang.IllegalArgumentException
 import java.lang.ref.WeakReference
 
 data class SingleParams<K, E, Extra, CollectionExtra>(val refreshing: Boolean = false,
@@ -20,7 +15,14 @@ data class SingleParams<K, E, Extra, CollectionExtra>(val refreshing: Boolean = 
                                                       val extra: Extra? = null,
                                                       val collectionExtra: CollectionExtra? = null)
 
-typealias SingleFetchCallback<K, E, Extra, CollectionExtra> = (SingleParams<K, E, Extra, CollectionExtra>) -> Single<E>
+interface EntityFetchExceptionInterface
+{
+    val code: Int
+}
+
+class EntityFetchException(override val code: Int): IllegalArgumentException(), EntityFetchExceptionInterface
+
+typealias SingleFetchCallback<K, E, Extra, CollectionExtra> = (SingleParams<K, E, Extra, CollectionExtra>) -> Single<Optional<E>>
 
 class SingleObservableCollectionExtra<K: Comparable<K>, E: Entity<K>, Extra, CollectionExtra>(holder: EntityCollection<K, E>,
                                                                                               queue: Scheduler,
@@ -28,44 +30,64 @@ class SingleObservableCollectionExtra<K: Comparable<K>, E: Entity<K>, Extra, Col
                                                                                               extra: Extra? = null,
                                                                                               collectionExtra: CollectionExtra? = null,
                                                                                               start: Boolean = true,
-                                                                                              combineSources: List<CombineSource<E>> = listOf(),
-                                                                                              fetch: SingleFetchCallback<K, E, Extra, CollectionExtra>): SingleObservableExtra<K, E, Extra>(holder, queue, key, extra, combineSources)
+                                                                                              fetch: SingleFetchCallback<K, E, Extra, CollectionExtra>): SingleObservableExtra<K, E, Extra>(holder, queue, key, extra)
 {
-    protected val rxMiddleware = BehaviorSubject.create<E>()
     private val _rxRefresh = PublishSubject.create<SingleParams<K, E, Extra, CollectionExtra>>()
     private var started = false
 
     var collectionExtra: CollectionExtra? = collectionExtra
         private set
 
-    constructor(holder: EntityCollection<K, E>, queue: Scheduler, collectionExtra: CollectionExtra? = null, initial: E, refresh: Boolean, combineSources: List<CombineSource<E>> = listOf(), fetch: SingleFetchCallback<K, E, Extra, CollectionExtra> ):
-            this(holder = holder, queue = queue, key = initial._key, collectionExtra = collectionExtra, start = refresh, combineSources = combineSources, fetch = fetch)
+    constructor(holder: EntityCollection<K, E>, queue: Scheduler, collectionExtra: CollectionExtra? = null, initial: E, refresh: Boolean, fetch: SingleFetchCallback<K, E, Extra, CollectionExtra> ):
+            this(holder = holder, queue = queue, key = initial._key, collectionExtra = collectionExtra, start = refresh, fetch = fetch)
     {
-        rxMiddleware.onNext(initial)
+        val weak = WeakReference(this)
+
+        val disp = Single.just(true)
+            .observeOn(queue)
+            .flatMap { weak.get()?.collection?.get()?.RxRequestForCombine(weak.get()?.uuid ?: "", initial) ?: Single.just(initial) }
+            .subscribe { v ->
+                weak.get()?.rxPublish?.onNext(v)
+                weak.get()?.rxState?.onNext(State.Ready)
+            }
+
+        dispBag.add(disp)
         started = !refresh
     }
 
     init
     {
         val weak = WeakReference(this)
-        var obs = _rxRefresh
-            .doOnNext { weak.get()?.rxLoader?.onNext( true ) }
+        val disp = _rxRefresh
+            .doOnNext { weak.get()?.rxLoader?.onNext(if (it.first) Loading.FirstLoading else Loading.Loading) }
             .switchMap {
                 e: SingleParams<K, E, Extra, CollectionExtra> ->
                 fetch( e )
                     .toObservable()
-                    .doOnNext { this.key = it._key }
+                    .flatMap {
+                        if (it.value == null) error(EntityFetchException(404)) else just(it.value)
+                    }
                     .onErrorResumeNext {
                         t: Throwable ->
-                        weak.get()?.rxError?.onNext(t)
-                        weak.get()?.rxLoader?.onNext( false )
+                        if (t is EntityFetchExceptionInterface)
+                            weak.get()?.rxState?.onNext(State.NotFound)
+                        else
+                            weak.get()?.rxError?.onNext(t)
+                        weak.get()?.rxLoader?.onNext(Loading.None)
                         empty<E>()
                     }
             }
-            .doOnNext { weak.get()?.rxLoader?.onNext( false ) }
-            .switchMap { weak.get()?.collection?.get()?.RxUpdate(entity = it)?.toObservable() ?: empty<E>() }
             .observeOn(queue)
+            .doOnNext {
+                weak.get()?.key = it._key
+                weak.get()?.rxLoader?.onNext(Loading.None)
+                weak.get()?.rxState?.onNext(State.Ready)
+            }
+            .flatMap { weak.get()?.collection?.get()?.RxRequestForCombine(weak.get()?.uuid ?: "", entity = it)?.toObservable() ?: empty<E>() }
+            .subscribe { weak.get()?.rxPublish?.onNext(it) }
 
+        dispBag.add(disp)
+/*
         dispBag.add(obs.subscribe { weak.get()?.rxMiddleware?.onNext(it) })
         obs = rxMiddleware
         combineSources.forEach { ms ->
@@ -81,7 +103,7 @@ class SingleObservableCollectionExtra<K: Comparable<K>, E: Entity<K>, Extra, Col
             }
         }
         dispBag.add(obs.subscribe { weak.get()?.rxPublish?.onNext(it) })
-
+*/
         if (start)
         {
             started = true
@@ -119,8 +141,6 @@ class SingleObservableCollectionExtra<K: Comparable<K>, E: Entity<K>, Extra, Col
 
     fun _collectionRefresh(resetCache: Boolean = false, extra: Extra? = null, collectionExtra: CollectionExtra? = null)
     {
-        //assert( queue.operationQueue == OperationQueue.current, "_Refresh can be updated only from the specified in the constructor OperationQueue" )
-
         super._refresh(resetCache = resetCache, extra = extra)
         this.collectionExtra = collectionExtra ?: this.collectionExtra
         _rxRefresh.onNext(SingleParams(refreshing = true, resetCache = resetCache, first = !started, key = key, last = entity, extra = this.extra, collectionExtra = this.collectionExtra))

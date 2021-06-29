@@ -17,7 +17,6 @@ data class PageParams<K, Extra, CollectionExtra>(val page: Int,
                                               val refreshing: Boolean = false,
                                               val resetCache: Boolean = false,
                                               val first: Boolean = false,
-                                              val keys: List<K> = listOf(),
                                               val extra: Extra? = null,
                                               val collectionExtra: CollectionExtra? = null)
 
@@ -25,25 +24,29 @@ typealias PageFetchCallback<K, E, Extra, CollectionExtra> = (PageParams<K, Extra
 
 class PaginatorObservableCollectionExtra<K: Comparable<K>, E: Entity<K>, Extra, CollectionExtra>(holder: EntityCollection<K, E>,
                                                                                                  queue: Scheduler,
-                                                                                                 keys: List<K> = listOf(),
                                                                                                  extra: Extra? = null,
                                                                                                  collectionExtra: CollectionExtra? = null,
                                                                                                  perPage: Int = 35,
                                                                                                  start: Boolean = true,
-                                                                                                 combineSources: List<CombineSource<E>> = listOf(),
-                                                                                                 fetch: PageFetchCallback<K, E, Extra, CollectionExtra>): PaginatorObservableExtra<K, E, Extra>(holder, queue, keys, perPage, extra, combineSources)
+                                                                                                 fetch: PageFetchCallback<K, E, Extra, CollectionExtra>): PaginatorObservableExtra<K, E, Extra>(holder, queue, perPage, extra)
 {
     protected val rxPage = PublishSubject.create<PageParams<K, Extra, CollectionExtra>>()
-    protected val rxMiddleware = BehaviorSubject.create<List<E>>()
 
     var collectionExtra: CollectionExtra? = collectionExtra
         protected set
     protected var started = false
 
-    constructor(holder: EntityCollection<K, E>, queue: Scheduler, collectionExtra: CollectionExtra? = null, initial: List<E>, combineSources: List<CombineSource<E>> = listOf(), fetch: PageFetchCallback<K, E, Extra, CollectionExtra> ):
-            this(holder = holder, queue = queue, keys = initial.map { it._key }, collectionExtra = collectionExtra, start = false, combineSources = combineSources, fetch = fetch)
+    constructor(holder: EntityCollection<K, E>, queue: Scheduler, collectionExtra: CollectionExtra? = null, initial: List<E>, fetch: PageFetchCallback<K, E, Extra, CollectionExtra> ):
+            this(holder = holder, queue = queue, collectionExtra = collectionExtra, start = false, fetch = fetch)
     {
-        rxMiddleware.onNext(initial)
+        val weak = WeakReference(this)
+        val disp = Single.just(true)
+            .observeOn(queue)
+            .flatMap { weak.get()?.collection?.get()?.RxRequestForCombine(source = weak.get()?.uuid ?: "", entities = initial) ?: Single.just(listOf()) }
+            .subscribe { v -> weak.get()?.setEntities(entities = v) }
+
+        dispBag.add(disp)
+
         started = true
         page = PAGINATOR_END
     }
@@ -51,23 +54,25 @@ class PaginatorObservableCollectionExtra<K: Comparable<K>, E: Entity<K>, Extra, 
     init
     {
         val weak = WeakReference(this)
-        var obs = rxPage
+        val disp = rxPage
                 .filter { it.page >= 0 }
-                .doOnNext { weak.get()?.rxLoader?.onNext(true) }
+                .doOnNext { weak.get()?.rxLoader?.onNext(if (it.first) Loading.FirstLoading else Loading.Loading) }
                 .switchMap {
                     fetch(it)
                         .toObservable()
-                        .doOnNext { this.keys = it.map { it._key } }
                         .onErrorReturn {
                             weak.get()?.rxError?.onNext(it)
+                            weak.get()?.rxLoader?.onNext(Loading.None)
                             return@onErrorReturn listOf<E>()
                         }
                 }
-                .switchMap { weak.get()?.collection?.get()?.RxUpdate(source = weak.get()?.uuid ?: "", entities = it)?.toObservable() ?: just(listOf()) }
                 .observeOn(queue)
-                .map { weak.get()?.append(entities = it) ?: listOf() }
-                .doOnNext { weak.get()?.rxLoader?.onNext(false) }
+                .doOnNext { weak.get()?.rxLoader?.onNext(Loading.None) }
+                .flatMap { weak.get()?.collection?.get()?.RxRequestForCombine(source = weak.get()?.uuid ?: "", entities = it)?.toObservable() ?: just(listOf()) }
+                .subscribe { weak.get()?.setEntities(weak.get()?.append(it) ?: listOf()) }
 
+        dispBag.add(disp)
+/*
         dispBag.add(obs.subscribe { weak.get()?.rxMiddleware?.onNext(it) })
         obs = rxMiddleware
         combineSources.forEach { ms ->
@@ -83,11 +88,11 @@ class PaginatorObservableCollectionExtra<K: Comparable<K>, E: Entity<K>, Extra, 
             }
         }
         dispBag.add(obs.subscribe { weak.get()?.rxPublish?.onNext(it) })
-
+*/
         if (start)
         {
             started = true
-            rxPage.onNext(PageParams(page = 0, perPage = perPage, first = true, keys = keys, extra = extra, collectionExtra = collectionExtra))
+            rxPage.onNext(PageParams(page = 0, perPage = perPage, first = true, extra = extra, collectionExtra = collectionExtra))
         }
     }
 
@@ -108,11 +113,11 @@ class PaginatorObservableCollectionExtra<K: Comparable<K>, E: Entity<K>, Extra, 
 
     override fun next()
     {
-        if (rxLoader.value == true)
+        if (rxLoader.value!!.isLoading)
             return
 
         if (started)
-            rxPage.onNext(PageParams(page = page + 1, perPage = perPage, keys = keys, extra = extra, collectionExtra = collectionExtra))
+            rxPage.onNext(PageParams(page = page + 1, perPage = perPage, extra = extra, collectionExtra = collectionExtra))
         else
             refresh()
     }
@@ -131,12 +136,9 @@ class PaginatorObservableCollectionExtra<K: Comparable<K>, E: Entity<K>, Extra, 
 
     fun _collectionRefresh(resetCache: Boolean = false, extra: Extra? = null, collectionExtra: CollectionExtra? = null)
     {
-        //assert( queue.operationQueue == OperationQueue.current, "_Refresh can be updated only from the specified in the constructor OperationQueue" )
-
-        rxMiddleware.onNext(listOf())
         super._refresh(resetCache = resetCache, extra = extra)
         this.collectionExtra = collectionExtra ?: this.collectionExtra
-        rxPage.onNext(PageParams(page = page + 1, perPage = perPage, refreshing = true, resetCache = resetCache, first = !started, keys = keys, extra = this.extra, collectionExtra = this.collectionExtra))
+        rxPage.onNext(PageParams(page = page + 1, perPage = perPage, refreshing = true, resetCache = resetCache, first = !started, extra = this.extra, collectionExtra = this.collectionExtra))
         started = true
     }
 }

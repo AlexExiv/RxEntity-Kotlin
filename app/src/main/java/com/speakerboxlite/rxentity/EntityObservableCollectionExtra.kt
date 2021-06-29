@@ -3,21 +3,104 @@ package com.speakerboxlite.rxentity
 import io.reactivex.Observable
 import io.reactivex.Scheduler
 import io.reactivex.Single
+import io.reactivex.disposables.Disposable
 import io.reactivex.functions.BiFunction
 import java.lang.ref.WeakReference
 
+typealias CombineMethod<E> = BiFunction<E, Array<*>, Pair<E, Boolean>>
+
 data class CombineSource<E>(val sources: List<Observable<*>>,
-                            val combine: BiFunction<E, Array<*>, E>)
+                            val combine: CombineMethod<E>)
+
+typealias SingleFetchBackCallback<K, E, Extra, CollectionExtra> = (SingleParams<K, E, Extra, CollectionExtra>) -> Single<Optional<EntityBack<K>>>
+typealias ArrayFetchBackCallback<K, Extra, CollectionExtra> = (KeyParams<K, Extra, CollectionExtra>) -> Single<List<EntityBack<K>>>
+typealias PageFetchBackCallback<K, Extra, CollectionExtra> = (PageParams<K, Extra, CollectionExtra>) -> Single<List<EntityBack<K>>>
 
 class EntityObservableCollectionExtra<K: Comparable<K>, E: Entity<K>, CollectionExtra>(queue: Scheduler, collectionExtra: CollectionExtra? = null): EntityCollection<K, E>(queue)
 {
     var collectionExtra: CollectionExtra? = collectionExtra
         protected set
 
+    var entityFactory: EntityFactory<K, EntityBack<K>, E>? = null
+
+    var repository: EntityRepositoryInterface<K>? = null
+        set(value)
+        {
+            field = value
+            if (value != null)
+            {
+                singleFetchCallback = {
+                    if (it.key == null)
+                        Single.just(Optional(null))
+                    else
+                        value
+                            ._RxGet(it.key)
+                            .map { Optional(if (it.value == null) null else entityFactory!!.map(it.value)) }
+                }
+
+                arrayFetchCallback = { value._RxGet(it.keys).map { it.map { entityFactory!!.map(it) } } }
+                if (value is EntityAllRepositoryInterface<K>)
+                {
+                    allArrayFetchCallback = { value._RxFetchAll().map { it.map { entityFactory!!.map(it) } } }
+                }
+                else
+                {
+                    allArrayFetchCallback = null
+                }
+
+                reposDisp?.dispose()
+
+                reposDisp = value.rxEntitiesUpdated
+                    .observeOn(queue)
+                    .subscribe {
+                        val keys = it.filter { it.entity == null && it.fieldPath == null }
+                        val entities = it.filter { it.entity != null && it.fieldPath == null }
+                        val indirect = it.filter { it.fieldPath != null }.map { k -> sharedEntities.values.filter { k.fieldPath!!.get(it)?.equals(k.key) == true }.map { it._key } }.flatten()
+
+                        print( "Repository requested update: $it" )
+                        print( "Total updates: KEYS - ${keys.size}; ENTITIES - ${entities.size}; INDIRECT - ${indirect.size}" )
+
+                        if (keys.size == 1)
+                        {
+                            commitByKey(key = keys[0].key, operation = keys[0].operation)
+                        }
+                        else if (keys.size > 1)
+                        {
+                            commitByKeys(keys = keys.map { it.key }, operations = keys.map { it.operation })
+                        }
+
+                        if (indirect.size == 1)
+                        {
+                            commitByKey(key = indirect[0], operation = UpdateOperation.Update)
+                        }
+                        else if (indirect.size > 1)
+                        {
+                            commitByKeys(keys = indirect, operation = UpdateOperation.Update)
+                        }
+
+                        if (entities.size > 0)
+                        {
+                            commit(entities = entities.map { it.entity!! }.map { entityFactory!!.map(it) }, operations = entities.map { it.operation })
+                        }
+                    }
+
+                dispBag.add(reposDisp!!)
+            }
+            else
+            {
+                singleFetchCallback = null
+                arrayFetchCallback = null
+                allArrayFetchCallback = null
+            }
+        }
+
+    protected var reposDisp: Disposable? = null
     var singleFetchCallback: SingleFetchCallback<K, E, EntityCollectionExtraParamsEmpty, CollectionExtra>? = null
-    var arrayFetchCallback: PageFetchCallback<K, E, EntityCollectionExtraParamsEmpty, CollectionExtra>? = null
+    var arrayFetchCallback: ArrayFetchCallback<K, E, EntityCollectionExtraParamsEmpty, CollectionExtra>? = null
+    var allArrayFetchCallback: PageFetchCallback<K, E, EntityCollectionExtraParamsEmpty, CollectionExtra>? = null
 
     protected val combineSources = mutableListOf<CombineSource<E>>()
+    var combineDisp: Disposable? = null
 
     /**
      *
@@ -28,7 +111,7 @@ class EntityObservableCollectionExtra<K: Comparable<K>, E: Entity<K>, Collection
     override fun createSingle(initial: E, refresh: Boolean): SingleObservable<K, E>
     {
         assert(singleFetchCallback != null) { "To create Single with initial value you must specify singleFetchCallback before" }
-        return SingleObservableCollectionExtra(holder = this, queue = queue, collectionExtra = collectionExtra, initial = initial, refresh = refresh, combineSources = combineSources, fetch = singleFetchCallback!!)
+        return SingleObservableCollectionExtra(holder = this, queue = queue, collectionExtra = collectionExtra, initial = initial, refresh = refresh, fetch = singleFetchCallback!!)
     }
 
     /**
@@ -54,7 +137,7 @@ class EntityObservableCollectionExtra<K: Comparable<K>, E: Entity<K>, Collection
      */
     fun createSingle(key: K? = null, start: Boolean = true, fetch: SingleFetchCallback<K, E, EntityCollectionExtraParamsEmpty, CollectionExtra>): SingleObservable<K, E>
     {
-        return SingleObservableCollectionExtra(holder = this, queue = queue, key = key, collectionExtra = collectionExtra, start = start, combineSources = combineSources, fetch = fetch)
+        return SingleObservableCollectionExtra(holder = this, queue = queue, key = key, collectionExtra = collectionExtra, start = start, fetch = fetch)
     }
 
     /**
@@ -71,66 +154,498 @@ class EntityObservableCollectionExtra<K: Comparable<K>, E: Entity<K>, Collection
         return SingleObservableCollectionExtra(holder = this, queue = queue, key = key, extra = extra, collectionExtra = collectionExtra, start = start, fetch = fetch)
     }
 
-    override fun createArray(initial: List<E>): ArrayObservable<K, E>
+    /**
+     * TODO
+     *
+     * @param key the unique field of a entity by using it Single retrieve the entity
+     * @param start the flag indicated that SingleObservable must fetch first entity immediately after it has been created
+     * @param fetch the closure callback that specify method to get entities from repository
+     * @return
+     */
+    fun createSingleBack(key: K? = null, start: Boolean = true, fetch: SingleFetchBackCallback<K, E, EntityCollectionExtraParamsEmpty, CollectionExtra>): SingleObservable<K, E>
+    {
+        return SingleObservableCollectionExtra(holder = this, queue = queue, key = key, collectionExtra = collectionExtra, start = start,
+            fetch = { fetch(it).map { Optional(if (it.value == null) null else entityFactory!!.map(it.value)) } })
+    }
+
+    /**
+     * TODO
+     *
+     * @param Extra
+     * @param extra
+     * @param start
+     * @param fetch
+     * @return
+     */
+    fun <Extra> createSingleBackExtra(key: K? = null, extra: Extra? = null, start: Boolean = true, fetch: SingleFetchBackCallback<K, E, Extra, CollectionExtra>): SingleObservableExtra<K, E, Extra>
+    {
+        return SingleObservableCollectionExtra(holder = this, queue = queue, key = key, extra = extra, collectionExtra = collectionExtra, start = start,
+            fetch = { fetch(it).map { Optional(if (it.value == null) null else entityFactory!!.map(it.value)) } })
+    }
+
+    override fun createKeyArray(initial: List<E>): ArrayKeyObservable<K, E>
     {
         assert(arrayFetchCallback != null) { "To create Array with initial values you must specify arrayFetchCallback before" }
-        return PaginatorObservableCollectionExtra(holder = this, queue = queue, collectionExtra = collectionExtra, initial = initial, combineSources = combineSources, fetch = arrayFetchCallback!!)
+        return ArrayKeyObservableCollectionExtra(holder = this, queue = queue, collectionExtra = collectionExtra, initial = initial, fetch = arrayFetchCallback!!)
     }
 
-    fun createArray(keys: List<K>, start: Boolean = true): ArrayObservable<K, E>
+    fun createKeyArray(keys: List<K>, start: Boolean = true): ArrayKeyObservable<K, E>
     {
         assert(arrayFetchCallback != null) { "To create Array with default fetch method must specify arrayFetchCallback before" }
-        return createArray(keys = keys, start = start, fetch = arrayFetchCallback!!)
+        return createKeyArray(keys = keys, start = start, fetch = arrayFetchCallback!!)
     }
 
-    fun createArray(keys: List<K> = listOf(), start: Boolean = true, fetch: PageFetchCallback<K, E, EntityCollectionExtraParamsEmpty, CollectionExtra>): ArrayObservable<K, E>
+    fun createKeyArray(keys: List<K> = listOf(), start: Boolean = true, fetch: ArrayFetchCallback<K, E, EntityCollectionExtraParamsEmpty, CollectionExtra>): ArrayKeyObservable<K, E>
     {
-        return PaginatorObservableCollectionExtra(holder = this, queue = queue, keys = keys, collectionExtra = collectionExtra, start = start, combineSources = combineSources, fetch = fetch)
+        return ArrayKeyObservableCollectionExtra(holder = this, queue = queue, keys = keys, collectionExtra = collectionExtra, start = start, fetch = fetch)
     }
 
-    fun <Extra> createArrayExtra(keys: List<K> = listOf(), extra: Extra? = null, start: Boolean = true, fetch: PageFetchCallback<K, E, Extra, CollectionExtra>): ArrayObservableExtra<K, E, Extra>
+    fun <Extra> createKeyArrayExtra(keys: List<K> = listOf(), extra: Extra? = null, start: Boolean = true, fetch: ArrayFetchCallback<K, E, Extra, CollectionExtra>): ArrayKeyObservableExtra<K, E, Extra>
     {
-        return PaginatorObservableCollectionExtra(holder = this, queue = queue, keys = keys, extra = extra, collectionExtra = collectionExtra, start = start, combineSources = combineSources, fetch = fetch)
+        return ArrayKeyObservableCollectionExtra(holder = this, queue = queue, keys = keys, extra = extra, collectionExtra = collectionExtra, start = start, fetch = fetch)
+    }
+
+    fun createKeyArrayBack(keys: List<K> = listOf(), start: Boolean = true, fetch: ArrayFetchBackCallback<K, EntityCollectionExtraParamsEmpty, CollectionExtra>): ArrayKeyObservable<K, E>
+    {
+        return ArrayKeyObservableCollectionExtra(holder = this, queue = queue, keys = keys, collectionExtra = collectionExtra, start = start,
+            fetch = { fetch(it).map { it.map { entityFactory!!.map(it) } } })
+    }
+
+    fun <Extra> createKeyArrayBackExtra(keys: List<K> = listOf(), extra: Extra? = null, start: Boolean = true, fetch: ArrayFetchBackCallback<K, Extra, CollectionExtra>): ArrayKeyObservableExtra<K, E, Extra>
+    {
+        return ArrayKeyObservableCollectionExtra(holder = this, queue = queue, keys = keys, extra = extra, collectionExtra = collectionExtra, start = start,
+            fetch = { fetch(it).map { it.map { entityFactory!!.map(it) } } })
+    }
+
+    fun createArray(start: Boolean = true): ArrayObservable<K, E>
+    {
+        return PaginatorObservableCollectionExtra(holder = this, queue = queue, collectionExtra = collectionExtra, start = start, fetch = { allArrayFetchCallback!!(it) })
+    }
+
+    fun createArray(start: Boolean = true, fetch: PageFetchCallback<K, E, EntityCollectionExtraParamsEmpty, CollectionExtra>): ArrayObservable<K, E>
+    {
+        return PaginatorObservableCollectionExtra(holder = this, queue = queue, collectionExtra = collectionExtra, start = start, fetch = fetch)
+    }
+
+    fun <Extra> createArrayExtra(extra: Extra? = null, start: Boolean = true, fetch: PageFetchCallback<K, E, Extra, CollectionExtra>): ArrayObservableExtra<K, E, Extra>
+    {
+        return PaginatorObservableCollectionExtra(holder = this, queue = queue, extra = extra, collectionExtra = collectionExtra, start = start, fetch = fetch)
+    }
+
+    fun createArrayBack(start: Boolean = true, fetch: PageFetchBackCallback<K, EntityCollectionExtraParamsEmpty, CollectionExtra>): ArrayObservable<K, E>
+    {
+        return PaginatorObservableCollectionExtra(holder = this, queue = queue, collectionExtra = collectionExtra, start = start,
+            fetch = { fetch(it).map { it.map { entityFactory!!.map(it) } } })
+    }
+
+    fun <Extra> createArrayBackExtra(extra: Extra? = null, start: Boolean = true, fetch: PageFetchBackCallback<K, Extra, CollectionExtra>): ArrayObservableExtra<K, E, Extra>
+    {
+        return PaginatorObservableCollectionExtra(holder = this, queue = queue, extra = extra, collectionExtra = collectionExtra, start = start,
+            fetch = { fetch(it).map { it.map { entityFactory!!.map(it) } } })
     }
 
     fun createPaginator(perPage: Int = 35, start: Boolean = true, fetch: PageFetchCallback<K, E, EntityCollectionExtraParamsEmpty, CollectionExtra>): PaginatorObservable<K, E>
     {
-        return PaginatorObservableCollectionExtra(holder = this, queue = queue, collectionExtra = collectionExtra, perPage = perPage, start = start, combineSources = combineSources, fetch = fetch)
+        return PaginatorObservableCollectionExtra(holder = this, queue = queue, collectionExtra = collectionExtra, perPage = perPage, start = start, fetch = fetch)
     }
 
     fun <Extra> createPaginatorExtra(extra: Extra? = null, perPage: Int = 35, start: Boolean = true, fetch: PageFetchCallback<K, E, Extra, CollectionExtra>): PaginatorObservableExtra<K, E, Extra>
     {
-        return PaginatorObservableCollectionExtra(holder = this, queue = queue, extra = extra, collectionExtra = collectionExtra, perPage = perPage, start = start, combineSources = combineSources, fetch = fetch)
+        return PaginatorObservableCollectionExtra(holder = this, queue = queue, extra = extra, collectionExtra = collectionExtra, perPage = perPage, start = start, fetch = fetch)
     }
 
-    fun <T> combineLatest(source: Observable<T>, merge: (E, T) -> E)
+    fun createPaginatorBack(perPage: Int = 35, start: Boolean = true, fetch: PageFetchBackCallback<K, EntityCollectionExtraParamsEmpty, CollectionExtra>): PaginatorObservable<K, E>
+    {
+        return PaginatorObservableCollectionExtra(holder = this, queue = queue, collectionExtra = collectionExtra, perPage = perPage, start = start,
+            fetch = { fetch(it).map { it.map { entityFactory!!.map(it) } } })
+    }
+
+    fun <Extra> createPaginatorBackExtra(extra: Extra? = null, perPage: Int = 35, start: Boolean = true, fetch: PageFetchBackCallback<K, Extra, CollectionExtra>): PaginatorObservableExtra<K, E, Extra>
+    {
+        return PaginatorObservableCollectionExtra(holder = this, queue = queue, extra = extra, collectionExtra = collectionExtra, perPage = perPage, start = start,
+            fetch = { fetch(it).map { it.map { entityFactory!!.map(it) } } })
+    }
+
+    fun <T> combineLatest(source: Observable<T>, merge: (E, T) -> Pair<E, Boolean>)
     {
         combineSources.add(CombineSource(listOf(source), BiFunction { e, a -> merge(e, a[0] as T) }))
+        buildCombines()
     }
 
-    fun <T0, T1> combineLatest(source0: Observable<T0>, source1: Observable<T1>, merge: (E, T0, T1) -> E)
+    fun <T0, T1> combineLatest(source0: Observable<T0>, source1: Observable<T1>, merge: (E, T0, T1) -> Pair<E, Boolean>)
     {
         combineSources.add(CombineSource(listOf(source0, source1), BiFunction { e, a -> merge(e, a[0] as T0, a[1] as T1) }))
+        buildCombines()
     }
 
-    fun <T0, T1, T2> combineLatest(source0: Observable<T0>, source1: Observable<T1>, source2: Observable<T2>, merge: (E, T0, T1, T2) -> E)
+    fun <T0, T1, T2> combineLatest(source0: Observable<T0>, source1: Observable<T1>, source2: Observable<T2>, merge: (E, T0, T1, T2) -> Pair<E, Boolean>)
     {
         combineSources.add(CombineSource(listOf(source0, source1, source2), BiFunction { e, a -> merge(e, a[0] as T0, a[1] as T1, a[2] as T2) }))
+        buildCombines()
     }
 
-    fun <T0, T1, T2, T3> combineLatest(source0: Observable<T0>, source1: Observable<T1>, source2: Observable<T2>, source3: Observable<T3>, merge: (E, T0, T1, T2, T3) -> E)
+    fun <T0, T1, T2, T3> combineLatest(source0: Observable<T0>, source1: Observable<T1>, source2: Observable<T2>, source3: Observable<T3>, merge: (E, T0, T1, T2, T3) -> Pair<E, Boolean>)
     {
         combineSources.add(CombineSource(listOf(source0, source1, source2, source3), BiFunction { e, a -> merge(e, a[0] as T0, a[1] as T1, a[2] as T2, a[3] as T3) }))
+        buildCombines()
     }
 
-    fun <T0, T1, T2, T3, T4> combineLatest(source0: Observable<T0>, source1: Observable<T1>, source2: Observable<T2>, source3: Observable<T3>, source4: Observable<T4>, merge: (E, T0, T1, T2, T3, T4) -> E)
+    fun <T0, T1, T2, T3, T4> combineLatest(source0: Observable<T0>, source1: Observable<T1>, source2: Observable<T2>, source3: Observable<T3>, source4: Observable<T4>, merge: (E, T0, T1, T2, T3, T4) -> Pair<E, Boolean>)
     {
         combineSources.add(CombineSource(listOf(source0, source1, source2, source3, source4), BiFunction { e, a -> merge(e, a[0] as T0, a[1] as T1, a[2] as T2, a[3] as T3, a[4] as T4) }))
+        buildCombines()
     }
 
-    fun <T0, T1, T2, T3, T4, T5> combineLatest(source0: Observable<T0>, source1: Observable<T1>, source2: Observable<T2>, source3: Observable<T3>, source4: Observable<T4>, source5: Observable<T5>, merge: (E, T0, T1, T2, T3, T4, T5) -> E)
+    fun <T0, T1, T2, T3, T4, T5> combineLatest(source0: Observable<T0>, source1: Observable<T1>, source2: Observable<T2>, source3: Observable<T3>, source4: Observable<T4>, source5: Observable<T5>, merge: (E, T0, T1, T2, T3, T4, T5) -> Pair<E, Boolean>)
     {
         combineSources.add(CombineSource(listOf(source0, source1, source2, source3, source4, source5), BiFunction { e, a -> merge(e, a[0] as T0, a[1] as T1, a[2] as T2, a[3] as T3, a[4] as T4, a[5] as T5) }))
+        buildCombines()
+    }
+
+    override fun RxRequestForCombine(source: String, entity: E, updateChilds: Boolean) : Single<E>
+    {
+        var obs = Observable.just(entity)
+        combineSources.forEach { ms  ->
+            obs = when (ms.sources.size)
+            {
+                1 -> Observable.combineLatest(obs, ms.sources[0], { es, t -> ms.combine.apply(es, arrayOf(t)).first })
+                2 -> Observable.combineLatest(obs, ms.sources[0], ms.sources[1], { es, t0, t1 -> ms.combine.apply(es, arrayOf(t0, t1)).first })
+                3 -> Observable.combineLatest(obs, ms.sources[0], ms.sources[1], ms.sources[2], { es, t0, t1, t2 -> ms.combine.apply(es, arrayOf(t0, t1, t2)).first })
+                4 -> Observable.combineLatest(obs, ms.sources[0], ms.sources[1], ms.sources[2], ms.sources[3], { es, t0, t1, t2, t3 -> ms.combine.apply(es, arrayOf(t0, t1, t2, t3)).first })
+                5 -> Observable.combineLatest(obs, ms.sources[0], ms.sources[1], ms.sources[2], ms.sources[3], ms.sources[4], { es, t0, t1, t2, t3, t4 -> ms.combine.apply(es, arrayOf(t0, t1, t2, t3, t4)).first })
+                6 -> Observable.combineLatest(obs, ms.sources[0], ms.sources[1], ms.sources[2], ms.sources[3], ms.sources[4], ms.sources[5], { es, t0, t1, t2, t3, t4, t5 -> ms.combine.apply(es, arrayOf(t0, t1, t2, t3, t4, t5)).first })
+                else -> Observable.combineLatest(obs, ms.sources[0], { es, t -> ms.combine.apply(es, arrayOf(t)).first })
+            }
+        }
+        return obs
+            .take(1)
+            .doOnNext { if (updateChilds) update(source = source, entity = it) }
+            .firstOrError()
+    }
+
+    override fun RxRequestForCombine(source: String, entities: List<E>, updateChilds: Boolean) : Single<List<E>>
+    {
+        var obs = Observable.just(entities)
+        combineSources.forEach { ms  ->
+            obs = when (ms.sources.size) {
+                1 -> Observable.combineLatest(obs, ms.sources[0], { es, t -> es.map { ms.combine.apply(it, arrayOf(t)).first } })
+                2 -> Observable.combineLatest(obs, ms.sources[0], ms.sources[1], { es, t0, t1 -> es.map { ms.combine.apply(it, arrayOf(t0, t1)).first } })
+                3 -> Observable.combineLatest(obs, ms.sources[0], ms.sources[1], ms.sources[2], { es, t0, t1, t2 -> es.map { ms.combine.apply(it, arrayOf(t0, t1, t2)).first } })
+                4 -> Observable.combineLatest(obs, ms.sources[0], ms.sources[1], ms.sources[2], ms.sources[3], { es, t0, t1, t2, t3 -> es.map { ms.combine.apply(it, arrayOf(t0, t1, t2, t3)).first } })
+                5 -> Observable.combineLatest(obs, ms.sources[0], ms.sources[1], ms.sources[2], ms.sources[3], ms.sources[4], { es, t0, t1, t2, t3, t4 -> es.map { ms.combine.apply(it, arrayOf(t0, t1, t2, t3, t4)).first } })
+                6 -> Observable.combineLatest(obs, ms.sources[0], ms.sources[1], ms.sources[2], ms.sources[3], ms.sources[4], ms.sources[5], { es, t0, t1, t2, t3, t4, t5 -> es.map { ms.combine.apply(it, arrayOf(t0, t1, t2, t3, t4, t5)).first } })
+                else -> Observable.combineLatest(obs, ms.sources[0], { es, t -> es.map { ms.combine.apply(it, arrayOf(t)).first } })
+            }
+        }
+        return obs
+            .take(1)
+            .doOnNext { if (updateChilds) update(source = source, entities = it) }
+            .firstOrError()
+    }
+
+    fun buildCombines()
+    {
+        var obs: Observable<List<Pair<CombineMethod<E>, Array<Any>>>> = Observable.just(listOf<Pair<CombineMethod<E>, Array<Any>>>()).observeOn(queue)
+        combineSources.forEach { ms  ->
+            when (ms.sources.size) {
+                1 -> {
+                    obs = Observable
+                        .combineLatest(obs, ms.sources[0], { arr, t0  -> arr + listOf(Pair(ms.combine, arrayOf(t0))) }) }
+                2 -> {
+                    obs = Observable
+                        .combineLatest(obs, ms.sources[0], ms.sources[1], { arr, t0, t1  -> arr + listOf(Pair(ms.combine, arrayOf(t0, t1))) })
+                }
+                3 -> {
+                    obs = Observable
+                        .combineLatest(obs, ms.sources[0], ms.sources[1], ms.sources[2], { arr, t0, t1, t2  -> arr + listOf(Pair(ms.combine, arrayOf(t0, t1, t2))) })
+                }
+                4 -> {
+                    obs = Observable
+                        .combineLatest(obs, ms.sources[0], ms.sources[1], ms.sources[2], ms.sources[3], { arr, t0, t1, t2, t3  -> arr + listOf(Pair(ms.combine, arrayOf(t0, t1, t2, t3))) })
+                }
+                5 -> {
+                    obs = Observable
+                        .combineLatest(obs, ms.sources[0], ms.sources[1], ms.sources[2], ms.sources[3], ms.sources[4], { arr, t0, t1, t2, t3, t4  -> arr + listOf(Pair(ms.combine, arrayOf(t0, t1, t2, t3, t4))) })
+                }
+                6 -> {
+                    obs = Observable
+                        .combineLatest(obs, ms.sources[0], ms.sources[1], ms.sources[2], ms.sources[3], ms.sources[4], ms.sources[5], { arr, t0, t1, t2, t3, t4, t5  -> arr + listOf(Pair(ms.combine, arrayOf(t0, t1, t2, t3, t4, t5))) })
+                }
+                else -> assert(false) { "Unsupported number of the sources" }
+            }
+        }
+
+        combineDisp?.dispose()
+        combineDisp = obs.subscribe { applyCombines(combines = it) }
+    }
+
+    protected fun applyCombines(combines: List<Pair<CombineMethod<E>, Array<Any>>>)
+    {
+        lock.lock()
+        try
+        {
+            val toUpdate = mutableMapOf<K , E>()
+            sharedEntities.keys.forEach {
+                var e = sharedEntities[it]!!
+                var updated = false
+                e = combines.fold(e) { a, c ->
+                    val r = c.first.apply(a, c.second)
+                    updated = updated || r.second
+                    r.first
+                }
+
+                if (updated) {
+                    sharedEntities[it] = e
+                    toUpdate[it] = e
+                }
+            }
+
+            items.forEach { it.get()?.update(source = "", entities = toUpdate) }
+        }
+        finally
+        {
+            lock.unlock()
+        }
+    }
+
+    override fun commit(entity: E, operation: UpdateOperation)
+    {
+        when (operation)
+        {
+            UpdateOperation.Delete -> commitDeleteByKeys(keys = setOf(entity._key))
+            UpdateOperation.Clear -> commitClear()
+            else ->
+            {
+                lock.lock()
+                try
+                {
+                    sharedEntities[entity._key] = entity
+                    items.forEach { it.get()?.Update(entity = entity, operation = operation) }
+                }
+                finally
+                {
+                    lock.unlock()
+                }
+            }
+        }
+    }
+
+    override fun commitByKey(key: K, operation: UpdateOperation)
+    {
+        when (operation)
+        {
+            UpdateOperation.Delete -> commitDeleteByKeys(keys = setOf(key))
+            UpdateOperation.Clear -> commitClear()
+            else ->
+            {
+                val r = repository
+                val factory = entityFactory
+                if (r != null && factory != null)
+                {
+                    assert(entityFactory != null) { "entityFactory can't be null" }
+
+                    val d = r._RxGet(key = key)
+                        .observeOn(queue)
+                        .flatMap {
+                            if (it.value == null)
+                                Single.just(null)
+                            else
+                                RxRequestForCombine(source = "", entity = factory.map(entity = it.value), updateChilds = false).map { it }
+                        }
+                        .subscribe({  if (it != null) commit(entity = it, operation = operation) }, { })
+
+                    dispBag.add(d)
+                }
+                else
+                {
+                    assert(false) { "To create Single with key you must specify singleFetchCallback or singleFetchBackCallback before" }
+                }
+            }
+        }
+    }
+
+    override fun commitByKey(key: K, changes: (E) -> E)
+    {
+        lock.lock()
+        try
+        {
+            val e = sharedEntities[key]
+            if (e != null)
+            {
+                val new = changes(e)
+                sharedEntities[key] = new
+                items.forEach { it.get()?.Update(entity = new, operation = UpdateOperation.Update) }
+            }
+        }
+        finally
+        {
+            lock.unlock()
+        }
+    }
+
+    override fun commit(entities: List<E>, operation: UpdateOperation)
+    {
+        when (operation)
+        {
+            UpdateOperation.Delete -> commitDeleteByKeys(keys = entities.map { it._key }.toSet())
+            UpdateOperation.Clear -> commitClear()
+            else ->
+            {
+                lock.lock()
+                try
+                {
+                    val forUpdate = mutableMapOf<K, E>()
+                    entities.forEach {
+                        if (sharedEntities[it._key] != null)
+                            forUpdate[it._key] = it
+
+                        sharedEntities[it._key] = it
+                    }
+
+                    items.forEach { it.get()?.update(entities = forUpdate, operation = operation) }
+                }
+                finally
+                {
+                    lock.unlock()
+                }
+            }
+        }
+    }
+
+    override fun commit(entities: List<E>, operations: List<UpdateOperation>)
+    {
+        val deleteKeys = entities.filterIndexed { i, e -> operations[i] == UpdateOperation.Delete }.map { it._key }.toSet()
+        val otherEntities = entities.filterIndexed { i, e -> operations[i] != UpdateOperation.Delete }.map { it }
+        val otherOpers = operations.filter { it != UpdateOperation.Delete }
+
+        if (operations.firstOrNull { it == UpdateOperation.Clear } != null)
+            commitClear()
+
+        commitDeleteByKeys(keys = deleteKeys)
+        lock.lock()
+        try
+        {
+            val forUpdate = mutableMapOf<K , E>()
+            val operationUpdate = mutableMapOf<K , UpdateOperation>()
+            otherEntities.forEachIndexed { i, e ->
+                if (sharedEntities[e._key] != null)
+                    forUpdate[e._key] = e
+
+                operationUpdate[e._key] = otherOpers[i]
+                sharedEntities[e._key] = e
+            }
+
+            items.forEach { it.get()?.update(entities = forUpdate, operations = operationUpdate) }
+        }
+        finally
+        {
+            lock.unlock()
+        }
+    }
+
+    override fun commitByKeys(keys: List<K>, operation: UpdateOperation)
+    {
+        when (operation)
+        {
+            UpdateOperation.Delete -> commitDeleteByKeys(keys = keys.toSet())
+            UpdateOperation.Clear -> commitClear()
+            else ->
+            {
+                val r = repository
+                val factory = entityFactory
+                if (r != null && factory != null)
+                {
+                    val d = r._RxGet(keys = keys)
+                        .observeOn(queue)
+                        .flatMap { RxRequestForCombine(source = "", entities = it.map { factory.map(entity = it) }, updateChilds = false).map { it } }
+                        .subscribe({ commit(entities = it, operation = operation) }, { })
+
+                    dispBag.add(d)
+                }
+                else
+                {
+                    assert(false) { "To create Single with key you must specify singleFetchCallback or singleFetchBackCallback before" }
+                }
+            }
+        }
+    }
+
+    override fun commitByKeys(keys: List<K>, operations: List<UpdateOperation>)
+    {
+        val deleteKeys = keys.filterIndexed { i, e -> operations[i] == UpdateOperation.Delete }.map { it }.toSet()
+        val otherKeys = keys.filterIndexed { i, e -> operations[i] != UpdateOperation.Delete }.map { it }
+        val otherOpers = operations.filter { it != UpdateOperation.Delete }
+
+        if (operations.firstOrNull { it == UpdateOperation.Clear } != null)
+            commitClear()
+
+        commitDeleteByKeys(keys = deleteKeys)
+
+        val r = repository
+        val factory = entityFactory
+        if (r != null && factory != null)
+        {
+            val d = r._RxGet(keys = otherKeys)
+                .observeOn(queue)
+                .flatMap { RxRequestForCombine(source = "", entities = it.map { factory.map(entity = it) }, updateChilds = false).map { it } }
+                .subscribe({ commit(entities = it, operations = otherOpers) }, {  })
+
+            dispBag.add(d)
+        }
+        else
+        {
+            assert(false) { "To create Single with key you must specify singleFetchCallback or singleFetchBackCallback before" }
+        }
+    }
+
+    override fun commitByKeys(keys: List<K>, changes: (E) -> E)
+    {
+        lock.lock()
+        try
+        {
+            val forUpdate = mutableMapOf<K, E>()
+            keys.forEach {
+                val e = sharedEntities[it]
+                if (e != null)
+                {
+                    val new = changes(e)
+                    sharedEntities[it] = new
+                    forUpdate[it] = new
+                }
+            }
+
+            items.forEach { it.get()?.update(entities = forUpdate, operation = UpdateOperation.Update) }
+        }
+        finally
+        {
+            lock.unlock()
+        }
+    }
+
+    override fun commitDeleteByKeys(keys: Set<K>)
+    {
+        lock.lock()
+        try
+        {
+            items.forEach { it.get()?.delete(keys = keys) }
+        }
+        finally
+        {
+            lock.unlock()
+        }
+    }
+
+    override fun commitClear()
+    {
+        lock.lock()
+        try
+        {
+            items.forEach { it.get()?.clear() }
+        }
+        finally
+        {
+            lock.unlock()
+        }
     }
 
     fun RxRequestForUpdate(source: String = "", key: K, update: (E) -> E): Single<Optional<E>>

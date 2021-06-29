@@ -5,12 +5,17 @@ import io.reactivex.Observer
 import io.reactivex.Scheduler
 import io.reactivex.subjects.BehaviorSubject
 
+const val ARRAY_PER_PAGE = 999999
+
 open class ArrayObservableExtra<K: Comparable<K>, E: Entity<K>, Extra>(holder: EntityCollection<K, E>,
                                                                        val queue: Scheduler,
-                                                                       keys: List<K> = listOf(),
-                                                                       extra: Extra? = null,
-                                                                       combineSources: List<CombineSource<E>> = listOf()): EntityObservable<K, E, List<E>>(holder, combineSources)
+                                                                       extra: Extra? = null): EntityObservable<K, E, List<E>>(holder)
 {
+    enum class UpdatePolicy
+    {
+        Update, Reload
+    }
+
     protected val rxPublish = BehaviorSubject.create<List<E>>()
 
     var extra: Extra? = extra
@@ -19,47 +24,225 @@ open class ArrayObservableExtra<K: Comparable<K>, E: Entity<K>, Extra>(holder: E
     var page: Int = -1
         protected set
 
-    var perPage: Int = 999999
+    var perPage: Int = ARRAY_PER_PAGE
         protected set
 
-    var keys: List<K> = keys
-        protected set
+    val entities: List<E> get() = _entities
+    protected var _entities: MutableList<E> = mutableListOf()
 
-    val entities: List<E>? get() = rxPublish.value
-    val entitiesNotNull: List<E> get() = rxPublish.value ?: listOf()
+    var updatePolicy: UpdatePolicy = UpdatePolicy.Update
 
-    operator fun get(i: Int): SingleObservable<K, E> = collection.get()!!.createSingle(entitiesNotNull[i])
+    operator fun get(i: Int): SingleObservable<K, E>
+    {
+        lock.lock()
+        try
+        {
+            return collection.get()!!.createSingle(_entities[i])
+        }
+        finally
+        {
+            lock.unlock()
+        }
+    }
 
     override fun update(source: String, entity: E)
     {
-        //assert( queue.operationQueue == OperationQueue.current, "Single observable can be updated only from the same queue with the parent collection" )
-
-        val i = entities?.indexOfFirst { it._key == entity._key }
-        if (i != null && i != -1 && source != uuid)
+        lock.lock()
+        try
         {
-            val entities = this.entities!!.toMutableList()
-            entities[i] = entity
-            rxPublish.onNext(entities)
+            val i = _entities.indexOfFirst { it._key == entity._key }
+            if (i != -1 && source != uuid)
+            {
+                _entities[i] = entity
+                rxPublish.onNext(entities)
+            }
+        }
+        finally
+        {
+            lock.unlock()
         }
     }
 
     override fun update(source: String, entities: Map<K, E>)
     {
-        //assert( queue.operationQueue == OperationQueue.current, "Single observable can be updated only from the same queue with the parent collection" )
-        val _entities = this.entities?.toMutableList()
-        if (_entities != null && source != uuid)
+        lock.lock()
+        try
         {
-            var was = false
-            _entities.forEachIndexed { i, e ->
-                if (entities[e._key] != null)
-                {
-                    _entities[i] = entities[e._key]!!
-                    was = true
+            if (source != uuid)
+            {
+                var was = false
+                _entities.forEachIndexed { i, e ->
+                    if (entities[e._key] != null)
+                    {
+                        _entities[i] = entities[e._key]!!
+                        was = true
+                    }
+                }
+
+                if (was)
+                    rxPublish.onNext(_entities)
+            }
+        }
+        finally
+        {
+            lock.unlock()
+        }
+    }
+
+    override fun update(entities: Map<K, E>, operation: UpdateOperation)
+    {
+        lock.lock()
+        try
+        {
+            if (operation == UpdateOperation.Insert || (updatePolicy == UpdatePolicy.Reload && operation == UpdateOperation.Update))
+                refresh(extra = extra)
+            else if (operation == UpdateOperation.Clear) clear()
+            else
+            {
+                _entities.forEach {
+                    val e = entities[it._key]
+                    if (e != null)
+                    {
+                        when (operation)
+                        {
+                            UpdateOperation.Update -> setEntity(entity = e)
+                            UpdateOperation.Delete -> remove(key = e._key)
+                        }
+                    }
                 }
             }
+        }
+        finally
+        {
+            lock.unlock()
+        }
+    }
 
-            if (was)
+    override fun update(entities: Map<K, E>, operations: Map<K, UpdateOperation>)
+    {
+        lock.lock()
+        try
+        {
+            if (operations.values.contains(UpdateOperation.Insert) || (updatePolicy == UpdatePolicy.Reload && operations.values.contains(UpdateOperation.Update)))
+            {
+                refresh(extra = extra)
+            }
+            else
+            {
+                val _entities = this.entities
+                _entities.forEach {
+                    val e = entities[it._key]
+                    val o = operations[it._key]
+                    if (e != null && o != null)
+                    {
+                        when (o)
+                        {
+                            UpdateOperation.Update -> setEntity(entity = e)
+                            UpdateOperation.Delete -> remove(key = e._key)
+                        }
+                    }
+                }
+            }
+        }
+        finally
+        {
+            lock.unlock()
+        }
+    }
+
+    override fun delete(keys: Set<K>)
+    {
+        lock.lock()
+        try
+        {
+            _entities.forEach {
+                if (keys.contains(it._key))
+                    remove(key = it._key)
+            }
+        }
+        finally
+        {
+            lock.unlock()
+        }
+    }
+
+    override fun clear()
+    {
+        setEntities(entities = listOf())
+    }
+
+    //MARK: - Set
+    fun setEntity(entity: E)
+    {
+        lock.lock()
+        try
+        {
+            val i = _entities.indexOfFirst { it._key == entity._key }
+            if (i != -1)
+            {
+                _entities[i] = entity
                 rxPublish.onNext(_entities)
+            }
+        }
+        finally
+        {
+            lock.unlock()
+        }
+    }
+
+    fun setEntities(entities: List<E>)
+    {
+        lock.lock()
+        try
+        {
+            _entities = entities.toMutableList()
+            rxPublish.onNext(_entities)
+        }
+        finally
+        {
+            lock.unlock()
+        }
+    }
+
+    open fun add(entity: E)
+    {
+        lock.lock()
+        try
+        {
+            _entities.appendNotExistEntity(entity = entity)
+            rxPublish.onNext(_entities)
+        }
+        finally
+        {
+            lock.unlock()
+        }
+    }
+
+    open fun remove(entity: E)
+    {
+        lock.lock()
+        try
+        {
+            _entities.removeEntity(entity = entity)
+            rxPublish.onNext(_entities)
+        }
+        finally
+        {
+            lock.unlock()
+        }
+    }
+
+    open fun remove(key: K)
+    {
+        lock.lock()
+        try
+        {
+            _entities.removeEntityByKey(key = key)
+            rxPublish.onNext(_entities)
+        }
+        finally
+        {
+            lock.unlock()
         }
     }
 
