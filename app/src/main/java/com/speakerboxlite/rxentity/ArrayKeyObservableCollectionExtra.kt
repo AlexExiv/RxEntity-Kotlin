@@ -57,7 +57,8 @@ class ArrayKeyObservableCollectionExtra<K: Comparable<K>, E: Entity<K>, Extra, C
                         listOf()
                     }
             }
-            .observeOn(queue).doOnNext { weak.get()?.rxLoader?.onNext(Loading.None) }
+            .observeOn(queue)
+            .doOnNext { weak.get()?.rxLoader?.onNext(Loading.None) }
             .flatMap { weak.get()?.collection?.get()?.RxRequestForCombine(source = weak.get()?.uuid ?: "", entities = it)?.toObservable() ?: just(listOf()) }
             .subscribe { v -> weak.get()?.setEntities(entities = v) }
 

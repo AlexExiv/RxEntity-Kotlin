@@ -55,18 +55,20 @@ class EntityObservableCollectionExtra<K: Comparable<K>, E: Entity<K>, Collection
                     .subscribe {
                         val keys = it.filter { it.entity == null && it.fieldPath == null }
                         val entities = it.filter { it.entity != null && it.fieldPath == null }
-                        val indirect = it.filter { it.fieldPath != null }.map { k -> sharedEntities.values.filter { k.fieldPath!!.get(it)?.equals(k.key) == true }.map { it._key } }.flatten()
+                        val indirect = it.filter { it.fieldPath != null }
+                            .map { k -> sharedEntities.values.filter { k.fieldPath!!.get(it)?.equals(k.key) == true }.map { it._key } }
+                            .flatten()
 
                         print( "Repository requested update: $it" )
                         print( "Total updates: KEYS - ${keys.size}; ENTITIES - ${entities.size}; INDIRECT - ${indirect.size}" )
 
                         if (keys.size == 1)
                         {
-                            commitByKey(key = keys[0].key, operation = keys[0].operation)
+                            commitByKey(key = keys[0].key as K, operation = keys[0].operation)
                         }
                         else if (keys.size > 1)
                         {
-                            commitByKeys(keys = keys.map { it.key }, operations = keys.map { it.operation })
+                            commitByKeys(keys = keys.map { it.key as K }, operations = keys.map { it.operation })
                         }
 
                         if (indirect.size == 1)
@@ -80,7 +82,7 @@ class EntityObservableCollectionExtra<K: Comparable<K>, E: Entity<K>, Collection
 
                         if (entities.size > 0)
                         {
-                            commit(entities = entities.map { it.entity!! }.map { entityFactory!!.map(it) }, operations = entities.map { it.operation })
+                            commit(entities = entities.map { it.entity!! }.map { entityFactory!!.map(it as EntityBack<K>) }, operations = entities.map { it.operation })
                         }
                     }
 

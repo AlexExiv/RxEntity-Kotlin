@@ -7,18 +7,21 @@ import org.junit.Test
 
 import org.junit.Assert.*
 
-data class TestEntity(val id: Int, val value: String): Entity<Int>
+data class TestEntity(val id: Int,
+                      val value: String,
+                      val indirectId: Int = 0,
+                      val indirectValue: String = ""): Entity<Int>
 {
     override val _key: Int
         get() = id
 }
-
+/*
 data class TestEntityBack(val id: Int, val value: String): EntityBack<Int>
 {
     override val _key: Int
         get() = id
 }
-
+*/
 data class ExtraParams(val test: String)
 data class ExtraCollectionParams(val test: String)
 
@@ -544,5 +547,41 @@ class EntityObservableUnitTest
             assertEquals(it[0].value, "15")
         }
         disp.dispose()
+    }
+
+    @Test
+    fun testCommits()
+    {
+        val collection = EntityObservableCollectionExtraInt<TestEntity, ExtraCollectionParams>(Schedulers.trampoline(), collectionExtra = ExtraCollectionParams(test="2"))
+
+        collection.singleFetchCallback = { Single.just(Optional(null)) }
+        collection.arrayFetchCallback = { Single.just(listOf()) }
+
+        val array = collection.createKeyArray(initial = listOf(TestEntity(id = 1, value = "2"), TestEntity(id = 2, value = "3")))
+        val single = collection.createSingle(key = 1)
+
+        collection.commit(TestEntity(id = 1, value = "12"), UpdateOperation.Update)
+
+        var d = single.subscribe { assertEquals("12", it.value) }
+        d.dispose()
+        d = array.subscribe { assertEquals("12", it[0].value) }
+        d.dispose()
+
+        collection.commitByKey(1) { TestEntity(id = 1, value = "13") }
+
+        d = single.subscribe { assertEquals("13", it.value) }
+        d.dispose()
+        d = array.subscribe { assertEquals("13", it[0].value) }
+        d.dispose()
+
+        collection.commitByKeys(listOf(1, 2)) { TestEntity(id = it.id, value = "${it.id}4") }
+
+        d = single.subscribe { assertEquals("14", it.value) }
+        d.dispose()
+        d = array.subscribe {
+            assertEquals("14", it[0].value)
+            assertEquals("24", it[1].value)
+        }
+        d.dispose()
     }
 }

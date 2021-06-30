@@ -7,7 +7,7 @@ import io.reactivex.Scheduler
 open class ArrayKeyObservableExtra<K: Comparable<K>, E: Entity<K>, Extra>(holder: EntityCollection<K, E>,
                                                                           keys: List<K>,
                                                                           extra: Extra? = null,
-                                                                          queue: Scheduler): ArrayObservableExtra<K, E, Extra>(holder, queue, extra)
+                                                                          queue: Scheduler): ArrayObservableExtra<K, E, Extra>(holder, queue, extra = extra)
 {
     var keys: List<K>
         get() = _keys

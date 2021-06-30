@@ -9,6 +9,7 @@ const val ARRAY_PER_PAGE = 999999
 
 open class ArrayObservableExtra<K: Comparable<K>, E: Entity<K>, Extra>(holder: EntityCollection<K, E>,
                                                                        val queue: Scheduler,
+                                                                       perPage: Int = ARRAY_PER_PAGE,
                                                                        extra: Extra? = null): EntityObservable<K, E, List<E>>(holder)
 {
     enum class UpdatePolicy
@@ -24,7 +25,7 @@ open class ArrayObservableExtra<K: Comparable<K>, E: Entity<K>, Extra>(holder: E
     var page: Int = -1
         protected set
 
-    var perPage: Int = ARRAY_PER_PAGE
+    var perPage: Int = perPage
         protected set
 
     val entities: List<E> get() = _entities
@@ -256,7 +257,10 @@ open class ArrayObservableExtra<K: Comparable<K>, E: Entity<K>, Extra>(holder: E
         //assert( queue.operationQueue == OperationQueue.current, "_Refresh can be updated only from the specified in the constructor OperationQueue" )
         this.extra = extra ?: this.extra
         page = -1
-        rxPublish.onNext(listOf())
+        if (perPage == ARRAY_PER_PAGE)
+        {
+            setEntities(listOf())
+        }
     }
 
     override fun subscribeActual(observer: Observer<in List<E>>)

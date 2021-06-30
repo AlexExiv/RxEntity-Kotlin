@@ -7,6 +7,13 @@ fun <K: Comparable<K>, E: Entity<K>> List<E>.toEntitiesMap(): Map<K, E>
     return map
 }
 
+fun <K: Comparable<K>, E: EntityBack<K>> List<E>.toEntitiesBackMap(): Map<K, E>
+{
+    val map = mutableMapOf<K, E>()
+    forEach { map[it._key] = it }
+    return map
+}
+
 fun <K: Comparable<K>, E: Entity<K>> MutableList<E>.appendNotExistEntity(entity: E)
 {
     if (firstOrNull { entity._key == it._key } == null)

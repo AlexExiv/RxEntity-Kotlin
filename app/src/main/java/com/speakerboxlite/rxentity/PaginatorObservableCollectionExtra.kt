@@ -26,7 +26,7 @@ class PaginatorObservableCollectionExtra<K: Comparable<K>, E: Entity<K>, Extra, 
                                                                                                  queue: Scheduler,
                                                                                                  extra: Extra? = null,
                                                                                                  collectionExtra: CollectionExtra? = null,
-                                                                                                 perPage: Int = 35,
+                                                                                                 perPage: Int = ARRAY_PER_PAGE,
                                                                                                  start: Boolean = true,
                                                                                                  fetch: PageFetchCallback<K, E, Extra, CollectionExtra>): PaginatorObservableExtra<K, E, Extra>(holder, queue, perPage, extra)
 {
@@ -72,23 +72,7 @@ class PaginatorObservableCollectionExtra<K: Comparable<K>, E: Entity<K>, Extra, 
                 .subscribe { weak.get()?.setEntities(weak.get()?.append(it) ?: listOf()) }
 
         dispBag.add(disp)
-/*
-        dispBag.add(obs.subscribe { weak.get()?.rxMiddleware?.onNext(it) })
-        obs = rxMiddleware
-        combineSources.forEach { ms ->
-            obs = when (ms.sources.size)
-            {
-                1 -> combineLatest(obs, ms.sources[0], BiFunction { es, t -> es.map { ms.combine.apply(it, arrayOf(t)) } })
-                2 -> combineLatest(obs, ms.sources[0], ms.sources[1], Function3 { es, t0, t1 -> es.map { ms.combine.apply(it, arrayOf(t0, t1)) } })
-                3 -> combineLatest(obs, ms.sources[0], ms.sources[1], ms.sources[2], Function4 { es, t0, t1, t2 -> es.map { ms.combine.apply(it, arrayOf(t0, t1, t2)) } })
-                4 -> combineLatest(obs, ms.sources[0], ms.sources[1], ms.sources[2], ms.sources[3], Function5 { es, t0, t1, t2, t3 -> es.map { ms.combine.apply(it, arrayOf(t0, t1, t2, t3)) } })
-                5 -> combineLatest(obs, ms.sources[0], ms.sources[1], ms.sources[2], ms.sources[3], ms.sources[4], Function6 { es, t0, t1, t2, t3, t4 -> es.map { ms.combine.apply(it, arrayOf(t0, t1, t2, t3, t4)) } })
-                6 -> combineLatest(obs, ms.sources[0], ms.sources[1], ms.sources[2], ms.sources[3], ms.sources[4], ms.sources[5], Function7 { es, t0, t1, t2, t3, t4, t5 -> es.map { ms.combine.apply(it, arrayOf(t0, t1, t2, t3, t4, t5)) } })
-                else -> combineLatest(obs, ms.sources[0], BiFunction { es, t -> es.map { ms.combine.apply(it, arrayOf(t)) } })
-            }
-        }
-        dispBag.add(obs.subscribe { weak.get()?.rxPublish?.onNext(it) })
-*/
+
         if (start)
         {
             started = true
