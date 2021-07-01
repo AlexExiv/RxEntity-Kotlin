@@ -1,8 +1,8 @@
 package com.speakerboxlite.rxentity
 
-import io.reactivex.Scheduler
-import io.reactivex.Single
-import io.reactivex.disposables.CompositeDisposable
+import io.reactivex.rxjava3.core.Scheduler
+import io.reactivex.rxjava3.core.Single
+import io.reactivex.rxjava3.disposables.CompositeDisposable
 import java.lang.ref.WeakReference
 import java.util.concurrent.locks.ReentrantLock
 

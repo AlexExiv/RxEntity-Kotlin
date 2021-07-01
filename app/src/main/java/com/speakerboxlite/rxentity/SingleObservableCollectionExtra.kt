@@ -1,9 +1,9 @@
 package com.speakerboxlite.rxentity
 
-import io.reactivex.Scheduler
-import io.reactivex.Single
-import io.reactivex.subjects.BehaviorSubject
-import io.reactivex.subjects.PublishSubject
+import io.reactivex.rxjava3.core.Scheduler
+import io.reactivex.rxjava3.core.Single
+import io.reactivex.rxjava3.subjects.BehaviorSubject
+import io.reactivex.rxjava3.subjects.PublishSubject
 import java.lang.IllegalArgumentException
 import java.lang.ref.WeakReference
 

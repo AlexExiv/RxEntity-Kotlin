@@ -1,7 +1,7 @@
 package com.speakerboxlite.rxentity
 
-import io.reactivex.Observable
-import io.reactivex.Scheduler
+import io.reactivex.rxjava3.core.Observable
+import io.reactivex.rxjava3.core.Scheduler
 
 
 open class ArrayKeyObservableExtra<K: Comparable<K>, E: Entity<K>, Extra>(holder: EntityCollection<K, E>,

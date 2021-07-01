@@ -1,9 +1,9 @@
 package com.speakerboxlite.rxentity
 
-import io.reactivex.Observable
-import io.reactivex.Observer
-import io.reactivex.Scheduler
-import io.reactivex.subjects.BehaviorSubject
+import io.reactivex.rxjava3.core.Observable
+import io.reactivex.rxjava3.core.Observer
+import io.reactivex.rxjava3.core.Scheduler
+import io.reactivex.rxjava3.subjects.BehaviorSubject
 
 const val ARRAY_PER_PAGE = 999999
 

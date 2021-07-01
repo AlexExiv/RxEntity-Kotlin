@@ -1,8 +1,8 @@
 package com.speakerboxlite.rxentity
 
-import io.reactivex.Scheduler
-import io.reactivex.Single
-import io.reactivex.subjects.PublishSubject
+import io.reactivex.rxjava3.core.Scheduler
+import io.reactivex.rxjava3.core.Single
+import io.reactivex.rxjava3.subjects.PublishSubject
 import java.lang.ref.WeakReference
 
 data class KeyParams<K, Extra, CollectionExtra>(val refreshing: Boolean = false,

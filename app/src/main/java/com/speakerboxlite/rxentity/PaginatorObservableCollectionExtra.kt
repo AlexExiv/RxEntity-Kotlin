@@ -1,15 +1,8 @@
 package com.speakerboxlite.rxentity
 
-import io.reactivex.Scheduler
-import io.reactivex.Single
-import io.reactivex.functions.BiFunction
-import io.reactivex.functions.Function3
-import io.reactivex.functions.Function4
-import io.reactivex.functions.Function5
-import io.reactivex.functions.Function6
-import io.reactivex.functions.Function7
-import io.reactivex.subjects.BehaviorSubject
-import io.reactivex.subjects.PublishSubject
+import io.reactivex.rxjava3.core.Scheduler
+import io.reactivex.rxjava3.core.Single
+import io.reactivex.rxjava3.subjects.PublishSubject
 import java.lang.ref.WeakReference
 
 data class PageParams<K, Extra, CollectionExtra>(val page: Int,

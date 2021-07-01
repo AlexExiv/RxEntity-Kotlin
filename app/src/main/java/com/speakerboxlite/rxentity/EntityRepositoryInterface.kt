@@ -1,8 +1,8 @@
 package com.speakerboxlite.rxentity
 
-import io.reactivex.Single
-import io.reactivex.disposables.CompositeDisposable
-import io.reactivex.subjects.PublishSubject
+import io.reactivex.rxjava3.core.Single
+import io.reactivex.rxjava3.disposables.CompositeDisposable
+import io.reactivex.rxjava3.subjects.PublishSubject
 import kotlin.reflect.KProperty1
 
 enum class UpdateOperation

@@ -1,6 +1,6 @@
 package com.speakerboxlite.rxentity
 
-import io.reactivex.Scheduler
+import io.reactivex.rxjava3.core.Scheduler
 
 const val PAGINATOR_END = -9999
 
