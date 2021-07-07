@@ -8,8 +8,8 @@ import io.reactivex.rxjava3.subjects.BehaviorSubject
 
 open class SingleObservableExtra<K: Comparable<K>, E: Entity<K>, Extra>(holder: EntityCollection<K, E>,
                                                                         val queue: Scheduler,
-                                                                        key: K? = null,
-                                                                        extra: Extra? = null): EntityObservable<K, E, E>(holder)
+                                                                        open var key: K?,
+                                                                        extra: Extra? = null): EntityObservable<K, E, Optional<E?>>(holder)
 {
     enum class State
     {
@@ -17,41 +17,41 @@ open class SingleObservableExtra<K: Comparable<K>, E: Entity<K>, Extra>(holder: 
     }
 
     val rxState = BehaviorSubject.createDefault(State.Initializing)
-    protected val rxPublish = BehaviorSubject.create<E>()
+    protected val rxPublish = BehaviorSubject.create<Optional<E?>>()
 
     var extra: Extra? = extra
         private set
 
-    var key: K? = key
-        protected set
-    val entity: E? get() = rxPublish.value
+    val entity: E? get() = rxPublish.value?.value
 
     override fun update(source: String, entity: E)
     {
-        if (this.entity?._key == entity._key && source != uuid)
+        if (key == entity._key && source != uuid)
         {
-            rxPublish.onNext(entity)
+            publish(entity)
         }
     }
 
     override fun update(source: String, entities: Map<K, E>)
     {
-        val key = entity?._key
-        if (key != null && entities[key] != null && source != uuid)
+        if (entities[key] != null && source != uuid)
         {
-            rxPublish.onNext(entities[key]!!)
+            publish(entities[key])
         }
     }
 
-    override fun update(entities: Map<K, E>, operation: UpdateOperation) {
-        val k = entity?._key
-        val e = entities[k]
-        if (k != null && e != null) {
-            when (operation) {
-                UpdateOperation.None, UpdateOperation.Insert, UpdateOperation.Update -> {
-                rxPublish.onNext(e)
-                rxState.onNext(State.Ready)
-            }
+    override fun update(entities: Map<K, E>, operation: UpdateOperation)
+    {
+        val e = entities[key]
+        if (e != null)
+        {
+            when (operation)
+            {
+                UpdateOperation.None, UpdateOperation.Insert, UpdateOperation.Update ->
+                {
+                    publish(e)
+                    rxState.onNext(State.Ready)
+                }
                 UpdateOperation.Delete, UpdateOperation.Clear -> clear()
             }
         }
@@ -59,17 +59,16 @@ open class SingleObservableExtra<K: Comparable<K>, E: Entity<K>, Extra>(holder: 
 
     override fun update(entities: Map<K, E>, operations: Map<K, UpdateOperation>)
     {
-        val k = entity?._key
-        val e = entities[k]
-        val o = operations[k]
+        val e = entities[key]
+        val o = operations[key]
 
-        if (k != null && e != null && o != null)
+        if ( e != null && o != null)
         {
             when (o)
             {
                 UpdateOperation.None, UpdateOperation.Insert, UpdateOperation.Update ->
                 {
-                    rxPublish.onNext(e)
+                    publish(e)
                     rxState.onNext(State.Ready)
                 }
                 UpdateOperation.Delete, UpdateOperation.Clear -> clear()
@@ -79,8 +78,7 @@ open class SingleObservableExtra<K: Comparable<K>, E: Entity<K>, Extra>(holder: 
 
     override fun delete(keys: Set<K>)
     {
-        val k = entity?._key
-        if (k != null && keys.contains(k))
+        if (keys.contains(key))
             clear()
     }
 
@@ -89,7 +87,7 @@ open class SingleObservableExtra<K: Comparable<K>, E: Entity<K>, Extra>(holder: 
         rxState.onNext(State.Deleted)
     }
 
-    override fun subscribeActual(observer: Observer<in E>)
+    override fun subscribeActual(observer: Observer<in Optional<E?>>?)
     {
         rxPublish.subscribe(observer)
     }
@@ -102,6 +100,11 @@ open class SingleObservableExtra<K: Comparable<K>, E: Entity<K>, Extra>(holder: 
     open fun _refresh(resetCache: Boolean = false, extra: Extra? = null)
     {
         this.extra = extra ?: this.extra
+    }
+
+    protected fun publish(entity: E?)
+    {
+        rxPublish.onNext(Optional(entity))
     }
 }
 

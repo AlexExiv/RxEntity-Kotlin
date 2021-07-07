@@ -122,7 +122,7 @@ class RepositoryUnitTest
         val repository = TestRepository<TestEntityBack>()
         repository.Add(entities = listOf(TestEntityBack(id = 1, value = "test1"), TestEntityBack(id = 2, value = "test2")))
 
-        val collection = EntityObservableCollectionExtraInt<TestEntity, ExtraCollectionParams>(Schedulers.trampoline(), collectionExtra = ExtraCollectionParams(test="2"))
+        val collection = EntityObservableCollectionExtraBackInt<TestEntity, TestEntityBack, ExtraCollectionParams>(Schedulers.trampoline(), collectionExtra = ExtraCollectionParams(test="2"))
         collection.repository = repository
         collection.entityFactory = TestEntityMapper() as EntityFactory<Int, EntityBack<Int>, TestEntity>
 
@@ -130,7 +130,7 @@ class RepositoryUnitTest
         val array = collection.createKeyArray(keys = listOf(1, 2))
         val single = collection.createSingle(key = 1)
 
-        var d = single.subscribe { Assert.assertEquals("test1", it.value) }
+        var d = single.subscribe { Assert.assertEquals("test1", it.value!!.value) }
         d.dispose()
         d = array.subscribe {
             Assert.assertEquals("test1", it[0].value)
@@ -140,7 +140,7 @@ class RepositoryUnitTest
 
         repository.Update(entity = TestEntityBack(id = 1, value = "test1-new"))
 
-        d = single.subscribe { Assert.assertEquals("test1-new", it.value) }
+        d = single.subscribe { Assert.assertEquals("test1-new", it.value!!.value) }
         d.dispose()
         d = array.subscribe { Assert.assertEquals("test1-new", it[0].value) }
         d.dispose()
@@ -153,6 +153,16 @@ class RepositoryUnitTest
             Assert.assertEquals("test2", it[0].value)
         }
         d.dispose()
+
+        single.key = 2
+        d = single.subscribe { Assert.assertEquals("test2", it.value!!.value) }
+        d.dispose()
+
+        single.key = 3
+        d = single.subscribe { Assert.assertEquals(null, it.value) }
+        d.dispose()
+        d = single.rxState.subscribe { Assert.assertEquals(SingleObservableExtra.State.NotFound, it) }
+        d.dispose()
     }
 
     @Test
@@ -161,7 +171,7 @@ class RepositoryUnitTest
         val repository = TestRepository<TestEntityBack>()
         repository.Add(entities = listOf(TestEntityBack(id = 1, value = "test1"), TestEntityBack(id = 2, value = "test2")))
 
-        val collection = EntityObservableCollectionExtraInt<TestEntity, ExtraCollectionParams>(Schedulers.trampoline(), collectionExtra = ExtraCollectionParams(test="2"))
+        val collection = EntityObservableCollectionExtraBackInt<TestEntity, TestEntityBack, ExtraCollectionParams>(Schedulers.trampoline(), collectionExtra = ExtraCollectionParams(test="2"))
         collection.repository = repository
         collection.entityFactory = TestEntityMapper() as EntityFactory<Int, EntityBack<Int>, TestEntity>
 
@@ -190,7 +200,7 @@ class RepositoryUnitTest
         val repository = TestRepository<TestEntityBack>()
         repository.Add(entities = listOf(TestEntityBack(id = 1, value = "test1"), TestEntityBack(id = 2, value = "test2")))
 
-        val collection = EntityObservableCollectionExtraInt<TestEntity, ExtraCollectionParams>(Schedulers.trampoline(), collectionExtra = ExtraCollectionParams(test="2"))
+        val collection = EntityObservableCollectionExtraBackInt<TestEntity, TestEntityBack, ExtraCollectionParams>(Schedulers.trampoline(), collectionExtra = ExtraCollectionParams(test="2"))
         collection.repository = repository
         collection.entityFactory = TestEntityMapper() as EntityFactory<Int, EntityBack<Int>, TestEntity>
 
@@ -218,14 +228,14 @@ class RepositoryUnitTest
 
         repository.connect(repositoryIndirect, TestEntity::indirectId)
 
-        val collection = EntityObservableCollectionExtraInt<TestEntity, ExtraCollectionParams>(Schedulers.trampoline(), collectionExtra = ExtraCollectionParams(test="2"))
+        val collection = EntityObservableCollectionExtraBackInt<TestEntity, TestEntityBack, ExtraCollectionParams>(Schedulers.trampoline(), collectionExtra = ExtraCollectionParams(test="2"))
         collection.repository = repository
         collection.entityFactory = TestEntityMapper() as EntityFactory<Int, EntityBack<Int>, TestEntity>
 
         val single = collection.createSingle(key = 1)
         val array = collection.createKeyArray(keys = listOf(1, 2))
 
-        var d = single.subscribe { Assert.assertEquals("indirect2", it.indirectValue) }
+        var d = single.subscribe { Assert.assertEquals("indirect2", it.value!!.indirectValue) }
         d.dispose()
         d = array.subscribe {
             Assert.assertEquals("indirect2", it[0].indirectValue)
@@ -236,7 +246,7 @@ class RepositoryUnitTest
         repositoryIndirect.Update(entity = IndirectEntityBack(id = 1, value = "indirect-1"))
         repositoryIndirect.Update(entity = IndirectEntityBack(id = 2, value = "indirect-2"))
 
-        d = single.subscribe { Assert.assertEquals("indirect-2", it.indirectValue) }
+        d = single.subscribe { Assert.assertEquals("indirect-2", it.value!!.indirectValue) }
         d.dispose()
         d = array.subscribe {
             Assert.assertEquals("indirect-2", it[0].indirectValue)

@@ -26,17 +26,31 @@ typealias SingleFetchCallback<K, E, Extra, CollectionExtra> = (SingleParams<K, E
 
 class SingleObservableCollectionExtra<K: Comparable<K>, E: Entity<K>, Extra, CollectionExtra>(holder: EntityCollection<K, E>,
                                                                                               queue: Scheduler,
-                                                                                              key: K? = null,
+                                                                                              key: K?,
                                                                                               extra: Extra? = null,
                                                                                               collectionExtra: CollectionExtra? = null,
                                                                                               start: Boolean = true,
                                                                                               fetch: SingleFetchCallback<K, E, Extra, CollectionExtra>): SingleObservableExtra<K, E, Extra>(holder, queue, key, extra)
 {
-    private val _rxRefresh = PublishSubject.create<SingleParams<K, E, Extra, CollectionExtra>>()
+    private val _rxRefresh = BehaviorSubject.create<SingleParams<K, E, Extra, CollectionExtra>>()
     private var started = false
 
     var collectionExtra: CollectionExtra? = collectionExtra
         private set
+
+    override var key: K?
+        get() = super.key
+        set(value)
+        {
+            lock.lock()
+            super.key = value
+
+            val params = _rxRefresh.value
+            _rxRefresh.onNext(SingleParams(resetCache = true, first = true, key = value, extra = params?.extra, collectionExtra = params?.collectionExtra))
+
+            lock.unlock()
+        }
+
 
     constructor(holder: EntityCollection<K, E>, queue: Scheduler, collectionExtra: CollectionExtra? = null, initial: E, refresh: Boolean, fetch: SingleFetchCallback<K, E, Extra, CollectionExtra> ):
             this(holder = holder, queue = queue, key = initial._key, collectionExtra = collectionExtra, start = refresh, fetch = fetch)
@@ -47,7 +61,7 @@ class SingleObservableCollectionExtra<K: Comparable<K>, E: Entity<K>, Extra, Col
             .observeOn(queue)
             .flatMap { weak.get()?.collection?.get()?.RxRequestForCombine(weak.get()?.uuid ?: "", initial) ?: Single.just(initial) }
             .subscribe { v ->
-                weak.get()?.rxPublish?.onNext(v)
+                weak.get()?.publish(v)
                 weak.get()?.rxState?.onNext(State.Ready)
             }
 
@@ -59,13 +73,17 @@ class SingleObservableCollectionExtra<K: Comparable<K>, E: Entity<K>, Extra, Col
     {
         val weak = WeakReference(this)
         val disp = _rxRefresh
-            .doOnNext { weak.get()?.rxLoader?.onNext(if (it.first) Loading.FirstLoading else Loading.Loading) }
+            .doOnNext {
+                weak.get()?.rxLoader?.onNext(if (it.first) Loading.FirstLoading else Loading.Loading)
+                if (it.first)
+                    weak.get()?.rxState?.onNext(State.Initializing)
+            }
             .switchMap {
                 e: SingleParams<K, E, Extra, CollectionExtra> ->
                 fetch( e )
                     .toObservable()
                     .flatMap {
-                        if (it.value == null) error(EntityFetchException(404)) else just(it.value)
+                        if (it.value == null) error(EntityFetchException(404)) else just(Optional(it.value))
                     }
                     .onErrorResumeNext {
                         t: Throwable ->
@@ -73,37 +91,23 @@ class SingleObservableCollectionExtra<K: Comparable<K>, E: Entity<K>, Extra, Col
                             weak.get()?.rxState?.onNext(State.NotFound)
                         else
                             weak.get()?.rxError?.onNext(t)
-                        weak.get()?.rxLoader?.onNext(Loading.None)
-                        empty<E>()
+                        just(Optional(null))
                     }
             }
             .observeOn(queue)
             .doOnNext {
-                weak.get()?.key = it._key
                 weak.get()?.rxLoader?.onNext(Loading.None)
-                weak.get()?.rxState?.onNext(State.Ready)
+                weak.get()?.rxState?.onNext(if (it.exist()) State.Ready else State.NotFound)
             }
-            .flatMap { weak.get()?.collection?.get()?.RxRequestForCombine(weak.get()?.uuid ?: "", entity = it)?.toObservable() ?: empty<E>() }
-            .subscribe { weak.get()?.rxPublish?.onNext(it) }
+            .flatMap {
+                if (it.value == null)
+                    just(Optional(null))
+                else
+                    weak.get()?.collection?.get()?.RxRequestForCombine(weak.get()?.uuid ?: "", entity = it.value)?.map { Optional(it) }?.toObservable() ?: empty<Optional<E?>>() }
+            .subscribe { weak.get()?.rxPublish?.onNext(it as Optional<E?>) }
 
         dispBag.add(disp)
-/*
-        dispBag.add(obs.subscribe { weak.get()?.rxMiddleware?.onNext(it) })
-        obs = rxMiddleware
-        combineSources.forEach { ms ->
-            obs = when (ms.sources.size)
-            {
-                1 -> combineLatest(obs, ms.sources[0], BiFunction { es, t -> ms.combine.apply(es, arrayOf(t)) })
-                2 -> combineLatest(obs, ms.sources[0], ms.sources[1], Function3 { es, t0, t1 -> ms.combine.apply(es, arrayOf(t0, t1)) })
-                3 -> combineLatest(obs, ms.sources[0], ms.sources[1], ms.sources[2], Function4 { es, t0, t1, t2 -> ms.combine.apply(es, arrayOf(t0, t1, t2)) })
-                4 -> combineLatest(obs, ms.sources[0], ms.sources[1], ms.sources[2], ms.sources[3], Function5 { es, t0, t1, t2, t3 -> ms.combine.apply(es, arrayOf(t0, t1, t2, t3)) })
-                5 -> combineLatest(obs, ms.sources[0], ms.sources[1], ms.sources[2], ms.sources[3], ms.sources[4], Function6 { es, t0, t1, t2, t3, t4 -> ms.combine.apply(es, arrayOf(t0, t1, t2, t3, t4)) })
-                6 -> combineLatest(obs, ms.sources[0], ms.sources[1], ms.sources[2], ms.sources[3], ms.sources[4], ms.sources[5], Function7 { es, t0, t1, t2, t3, t4, t5 -> ms.combine.apply(es, arrayOf(t0, t1, t2, t3, t4, t5)) })
-                else -> combineLatest(obs, ms.sources[0], BiFunction { es, t -> ms.combine.apply(es, arrayOf(t)) })
-            }
-        }
-        dispBag.add(obs.subscribe { weak.get()?.rxPublish?.onNext(it) })
-*/
+
         if (start)
         {
             started = true

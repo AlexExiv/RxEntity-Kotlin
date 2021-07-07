@@ -158,16 +158,16 @@ class EntityObservableUnitTest
         }
 
         var disp = single0.subscribe {
-            assertEquals(it.id, 1)
-            assertEquals(it.value, "1")
+            assertEquals(it.value!!.id, 1)
+            assertEquals(it.value!!.value, "1")
         }
 
         disp.dispose()
 
         single0.refresh(extra = ExtraParams("2"))
         disp = single0.subscribe {
-            assertEquals(it.id, 1)
-            assertEquals(it.value, "2")
+            assertEquals(it.value!!.id, 1)
+            assertEquals(it.value!!.value, "2")
         }
 
         disp.dispose()
@@ -241,8 +241,8 @@ class EntityObservableUnitTest
         collection.refresh(collectionExtra = ExtraCollectionParams(test = "4"))
 
         var disp = single0.subscribe {
-            assertEquals(it.id, 1)
-            assertEquals(it.value, "1")
+            assertEquals(it.value!!.id, 1)
+            assertEquals(it.value!!.value, "1")
         }
 
         disp.dispose()
@@ -289,15 +289,15 @@ class EntityObservableUnitTest
 
         val single0 = page0[0]
         var disp = single0.subscribe {
-            assertEquals(it.id, 1)
-            assertEquals(it.value, "21")
+            assertEquals(it.value!!.id, 1)
+            assertEquals(it.value!!.value, "21")
         }
         disp.dispose()
 
         val single1 = page0[1]
         disp = single1.subscribe {
-            assertEquals(it.id, 2)
-            assertEquals(it.value, "22")
+            assertEquals(it.value!!.id, 2)
+            assertEquals(it.value!!.value, "22")
         }
         disp.dispose()
 
@@ -306,28 +306,28 @@ class EntityObservableUnitTest
 
 
         disp = single0.subscribe {
-            assertEquals(it.id, 1)
-            assertEquals(it.value, "21")
+            assertEquals(it.value!!.id, 1)
+            assertEquals(it.value!!.value, "21")
         }
         disp.dispose()
 
         disp = single1.subscribe {
-            assertEquals(it.id, 2)
-            assertEquals(it.value, "22")
+            assertEquals(it.value!!.id, 2)
+            assertEquals(it.value!!.value, "22")
         }
         disp.dispose()
 
         collection.refresh(collectionExtra = ExtraCollectionParams(test = "4"))
 
         disp = single0.subscribe {
-            assertEquals(it.id, 1)
-            assertEquals(it.value, "41")
+            assertEquals(it.value!!.id, 1)
+            assertEquals(it.value!!.value, "41")
         }
         disp.dispose()
 
         disp = single1.subscribe {
-            assertEquals(it.id, 2)
-            assertEquals(it.value, "42")
+            assertEquals(it.value!!.id, 2)
+            assertEquals(it.value!!.value, "42")
         }
         disp.dispose()
     }
@@ -441,23 +441,23 @@ class EntityObservableUnitTest
         val single0 = collection.createSingle(1) { Single.just(Optional(TestEntity(1, "1"))) }
 
         var disp = single0.subscribe {
-            assertEquals(it.id, 1)
-            assertEquals(it.value, "3")
+            assertEquals(it.value!!.id, 1)
+            assertEquals(it.value!!.value, "3")
         }
         disp.dispose()
 
         rxObs.onNext("4")
         rxObs1.onNext("4")
         disp = single0.subscribe {
-            assertEquals(it.id, 1)
-            assertEquals(it.value, "4")
+            assertEquals(it.value!!.id, 1)
+            assertEquals(it.value!!.value, "4")
         }
         disp.dispose()
 
         rxObs1.onNext("5")
         disp = single0.subscribe {
-            assertEquals(it.id, 1)
-            assertEquals(it.value, "5")
+            assertEquals(it.value!!.id, 1)
+            assertEquals(it.value!!.value, "5")
         }
         disp.dispose()
     }
@@ -562,21 +562,21 @@ class EntityObservableUnitTest
 
         collection.commit(TestEntity(id = 1, value = "12"), UpdateOperation.Update)
 
-        var d = single.subscribe { assertEquals("12", it.value) }
+        var d = single.subscribe { assertEquals("12", it.value!!.value) }
         d.dispose()
         d = array.subscribe { assertEquals("12", it[0].value) }
         d.dispose()
 
         collection.commitByKey(1) { TestEntity(id = 1, value = "13") }
 
-        d = single.subscribe { assertEquals("13", it.value) }
+        d = single.subscribe { assertEquals("13", it.value!!.value) }
         d.dispose()
         d = array.subscribe { assertEquals("13", it[0].value) }
         d.dispose()
 
         collection.commitByKeys(listOf(1, 2)) { TestEntity(id = it.id, value = "${it.id}4") }
 
-        d = single.subscribe { assertEquals("14", it.value) }
+        d = single.subscribe { assertEquals("14", it.value!!.value) }
         d.dispose()
         d = array.subscribe {
             assertEquals("14", it[0].value)

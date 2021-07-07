@@ -12,91 +12,11 @@ typealias CombineMethod<E> = BiFunction<E, Array<*>, Pair<E, Boolean>>
 data class CombineSource<E>(val sources: List<Observable<*>>,
                             val combine: CombineMethod<E>)
 
-typealias SingleFetchBackCallback<K, E, Extra, CollectionExtra> = (SingleParams<K, E, Extra, CollectionExtra>) -> Single<Optional<EntityBack<K>>>
-typealias ArrayFetchBackCallback<K, Extra, CollectionExtra> = (KeyParams<K, Extra, CollectionExtra>) -> Single<List<EntityBack<K>>>
-typealias PageFetchBackCallback<K, Extra, CollectionExtra> = (PageParams<K, Extra, CollectionExtra>) -> Single<List<EntityBack<K>>>
-
-class EntityObservableCollectionExtra<K: Comparable<K>, E: Entity<K>, CollectionExtra>(queue: Scheduler, collectionExtra: CollectionExtra? = null): EntityCollection<K, E>(queue)
+open class EntityObservableCollectionExtra<K: Comparable<K>, E: Entity<K>, CollectionExtra>(queue: Scheduler, collectionExtra: CollectionExtra? = null): EntityCollection<K, E>(queue)
 {
     var collectionExtra: CollectionExtra? = collectionExtra
         protected set
 
-    var entityFactory: EntityFactory<K, EntityBack<K>, E>? = null
-
-    var repository: EntityRepositoryInterface<K>? = null
-        set(value)
-        {
-            field = value
-            if (value != null)
-            {
-                singleFetchCallback = {
-                    if (it.key == null)
-                        Single.just(Optional(null))
-                    else
-                        value
-                            ._RxGet(it.key)
-                            .map { Optional(if (it.value == null) null else entityFactory!!.map(it.value)) }
-                }
-
-                arrayFetchCallback = { value._RxGet(it.keys).map { it.map { entityFactory!!.map(it) } } }
-                if (value is EntityAllRepositoryInterface<K>)
-                {
-                    allArrayFetchCallback = { value._RxFetchAll().map { it.map { entityFactory!!.map(it) } } }
-                }
-                else
-                {
-                    allArrayFetchCallback = null
-                }
-
-                reposDisp?.dispose()
-
-                reposDisp = value.rxEntitiesUpdated
-                    .observeOn(queue)
-                    .subscribe {
-                        val keys = it.filter { it.entity == null && it.fieldPath == null }
-                        val entities = it.filter { it.entity != null && it.fieldPath == null }
-                        val indirect = it.filter { it.fieldPath != null }
-                            .map { k -> sharedEntities.values.filter { k.fieldPath!!.get(it)?.equals(k.key) == true }.map { it._key } }
-                            .flatten()
-
-                        print( "Repository requested update: $it" )
-                        print( "Total updates: KEYS - ${keys.size}; ENTITIES - ${entities.size}; INDIRECT - ${indirect.size}" )
-
-                        if (keys.size == 1)
-                        {
-                            commitByKey(key = keys[0].key as K, operation = keys[0].operation)
-                        }
-                        else if (keys.size > 1)
-                        {
-                            commitByKeys(keys = keys.map { it.key as K }, operations = keys.map { it.operation })
-                        }
-
-                        if (indirect.size == 1)
-                        {
-                            commitByKey(key = indirect[0], operation = UpdateOperation.Update)
-                        }
-                        else if (indirect.size > 1)
-                        {
-                            commitByKeys(keys = indirect, operation = UpdateOperation.Update)
-                        }
-
-                        if (entities.size > 0)
-                        {
-                            commit(entities = entities.map { it.entity!! }.map { entityFactory!!.map(it as EntityBack<K>) }, operations = entities.map { it.operation })
-                        }
-                    }
-
-                dispBag.add(reposDisp!!)
-            }
-            else
-            {
-                singleFetchCallback = null
-                arrayFetchCallback = null
-                allArrayFetchCallback = null
-            }
-        }
-
-    protected var reposDisp: Disposable? = null
     var singleFetchCallback: SingleFetchCallback<K, E, EntityCollectionExtraParamsEmpty, CollectionExtra>? = null
     var arrayFetchCallback: ArrayFetchCallback<K, E, EntityCollectionExtraParamsEmpty, CollectionExtra>? = null
     var allArrayFetchCallback: PageFetchCallback<K, E, EntityCollectionExtraParamsEmpty, CollectionExtra>? = null
@@ -122,7 +42,7 @@ class EntityObservableCollectionExtra<K: Comparable<K>, E: Entity<K>, Collection
      * @param start the flag indicated that SingleObservable must fetch first entity immediately after it has been created
      * @return
      */
-    fun createSingle(key: K, start: Boolean = true, refresh: Boolean = false): SingleObservable<K, E>
+    fun createSingle(key: K? = null, start: Boolean = true, refresh: Boolean = false): SingleObservable<K, E>
     {
         assert(singleFetchCallback != null) { "To create Single with default fetch method must specify singleFetchCallback before" }
         val e = sharedEntities[key]
@@ -156,35 +76,6 @@ class EntityObservableCollectionExtra<K: Comparable<K>, E: Entity<K>, Collection
         return SingleObservableCollectionExtra(holder = this, queue = queue, key = key, extra = extra, collectionExtra = collectionExtra, start = start, fetch = fetch)
     }
 
-    /**
-     * TODO
-     *
-     * @param key the unique field of a entity by using it Single retrieve the entity
-     * @param start the flag indicated that SingleObservable must fetch first entity immediately after it has been created
-     * @param fetch the closure callback that specify method to get entities from repository
-     * @return
-     */
-    fun createSingleBack(key: K? = null, start: Boolean = true, fetch: SingleFetchBackCallback<K, E, EntityCollectionExtraParamsEmpty, CollectionExtra>): SingleObservable<K, E>
-    {
-        return SingleObservableCollectionExtra(holder = this, queue = queue, key = key, collectionExtra = collectionExtra, start = start,
-            fetch = { fetch(it).map { Optional(if (it.value == null) null else entityFactory!!.map(it.value)) } })
-    }
-
-    /**
-     * TODO
-     *
-     * @param Extra
-     * @param extra
-     * @param start
-     * @param fetch
-     * @return
-     */
-    fun <Extra> createSingleBackExtra(key: K? = null, extra: Extra? = null, start: Boolean = true, fetch: SingleFetchBackCallback<K, E, Extra, CollectionExtra>): SingleObservableExtra<K, E, Extra>
-    {
-        return SingleObservableCollectionExtra(holder = this, queue = queue, key = key, extra = extra, collectionExtra = collectionExtra, start = start,
-            fetch = { fetch(it).map { Optional(if (it.value == null) null else entityFactory!!.map(it.value)) } })
-    }
-
     override fun createKeyArray(initial: List<E>): ArrayKeyObservable<K, E>
     {
         assert(arrayFetchCallback != null) { "To create Array with initial values you must specify arrayFetchCallback before" }
@@ -207,18 +98,6 @@ class EntityObservableCollectionExtra<K: Comparable<K>, E: Entity<K>, Collection
         return ArrayKeyObservableCollectionExtra(holder = this, queue = queue, keys = keys, extra = extra, collectionExtra = collectionExtra, start = start, fetch = fetch)
     }
 
-    fun createKeyArrayBack(keys: List<K> = listOf(), start: Boolean = true, fetch: ArrayFetchBackCallback<K, EntityCollectionExtraParamsEmpty, CollectionExtra>): ArrayKeyObservable<K, E>
-    {
-        return ArrayKeyObservableCollectionExtra(holder = this, queue = queue, keys = keys, collectionExtra = collectionExtra, start = start,
-            fetch = { fetch(it).map { it.map { entityFactory!!.map(it) } } })
-    }
-
-    fun <Extra> createKeyArrayBackExtra(keys: List<K> = listOf(), extra: Extra? = null, start: Boolean = true, fetch: ArrayFetchBackCallback<K, Extra, CollectionExtra>): ArrayKeyObservableExtra<K, E, Extra>
-    {
-        return ArrayKeyObservableCollectionExtra(holder = this, queue = queue, keys = keys, extra = extra, collectionExtra = collectionExtra, start = start,
-            fetch = { fetch(it).map { it.map { entityFactory!!.map(it) } } })
-    }
-
     fun createArray(start: Boolean = true): ArrayObservable<K, E>
     {
         return PaginatorObservableCollectionExtra(holder = this, queue = queue, collectionExtra = collectionExtra, start = start, fetch = { allArrayFetchCallback!!(it) })
@@ -234,18 +113,6 @@ class EntityObservableCollectionExtra<K: Comparable<K>, E: Entity<K>, Collection
         return PaginatorObservableCollectionExtra(holder = this, queue = queue, extra = extra, collectionExtra = collectionExtra, start = start, fetch = fetch)
     }
 
-    fun createArrayBack(start: Boolean = true, fetch: PageFetchBackCallback<K, EntityCollectionExtraParamsEmpty, CollectionExtra>): ArrayObservable<K, E>
-    {
-        return PaginatorObservableCollectionExtra(holder = this, queue = queue, collectionExtra = collectionExtra, start = start,
-            fetch = { fetch(it).map { it.map { entityFactory!!.map(it) } } })
-    }
-
-    fun <Extra> createArrayBackExtra(extra: Extra? = null, start: Boolean = true, fetch: PageFetchBackCallback<K, Extra, CollectionExtra>): ArrayObservableExtra<K, E, Extra>
-    {
-        return PaginatorObservableCollectionExtra(holder = this, queue = queue, extra = extra, collectionExtra = collectionExtra, start = start,
-            fetch = { fetch(it).map { it.map { entityFactory!!.map(it) } } })
-    }
-
     fun createPaginator(perPage: Int = 35, start: Boolean = true, fetch: PageFetchCallback<K, E, EntityCollectionExtraParamsEmpty, CollectionExtra>): PaginatorObservable<K, E>
     {
         return PaginatorObservableCollectionExtra(holder = this, queue = queue, collectionExtra = collectionExtra, perPage = perPage, start = start, fetch = fetch)
@@ -254,18 +121,6 @@ class EntityObservableCollectionExtra<K: Comparable<K>, E: Entity<K>, Collection
     fun <Extra> createPaginatorExtra(extra: Extra? = null, perPage: Int = 35, start: Boolean = true, fetch: PageFetchCallback<K, E, Extra, CollectionExtra>): PaginatorObservableExtra<K, E, Extra>
     {
         return PaginatorObservableCollectionExtra(holder = this, queue = queue, extra = extra, collectionExtra = collectionExtra, perPage = perPage, start = start, fetch = fetch)
-    }
-
-    fun createPaginatorBack(perPage: Int = 35, start: Boolean = true, fetch: PageFetchBackCallback<K, EntityCollectionExtraParamsEmpty, CollectionExtra>): PaginatorObservable<K, E>
-    {
-        return PaginatorObservableCollectionExtra(holder = this, queue = queue, collectionExtra = collectionExtra, perPage = perPage, start = start,
-            fetch = { fetch(it).map { it.map { entityFactory!!.map(it) } } })
-    }
-
-    fun <Extra> createPaginatorBackExtra(extra: Extra? = null, perPage: Int = 35, start: Boolean = true, fetch: PageFetchBackCallback<K, Extra, CollectionExtra>): PaginatorObservableExtra<K, E, Extra>
-    {
-        return PaginatorObservableCollectionExtra(holder = this, queue = queue, extra = extra, collectionExtra = collectionExtra, perPage = perPage, start = start,
-            fetch = { fetch(it).map { it.map { entityFactory!!.map(it) } } })
     }
 
     fun <T> combineLatest(source: Observable<T>, merge: (E, T) -> Pair<E, Boolean>)
@@ -440,19 +295,16 @@ class EntityObservableCollectionExtra<K: Comparable<K>, E: Entity<K>, Collection
             UpdateOperation.Clear -> commitClear()
             else ->
             {
-                val r = repository
-                val factory = entityFactory
-                if (r != null && factory != null)
+                val r = singleFetchCallback
+                if (r != null)
                 {
-                    assert(entityFactory != null) { "entityFactory can't be null" }
-
-                    val d = r._RxGet(key = key)
+                    val d = r(SingleParams(key = key))
                         .observeOn(queue)
                         .flatMap {
                             if (it.value == null)
                                 Single.just(null)
                             else
-                                RxRequestForCombine(source = "", entity = factory.map(entity = it.value), updateChilds = false).map { it }
+                                RxRequestForCombine(source = "", entity = it.value, updateChilds = false).map { it }
                         }
                         .subscribe({  if (it != null) commit(entity = it, operation = operation) }, { })
 
@@ -553,13 +405,12 @@ class EntityObservableCollectionExtra<K: Comparable<K>, E: Entity<K>, Collection
             UpdateOperation.Clear -> commitClear()
             else ->
             {
-                val r = repository
-                val factory = entityFactory
-                if (r != null && factory != null)
+                val r = arrayFetchCallback
+                if (r != null)
                 {
-                    val d = r._RxGet(keys = keys)
+                    val d = r(KeyParams(keys = keys))
                         .observeOn(queue)
-                        .flatMap { RxRequestForCombine(source = "", entities = it.map { factory.map(entity = it) }, updateChilds = false).map { it } }
+                        .flatMap { RxRequestForCombine(source = "", entities = it, updateChilds = false).map { it } }
                         .subscribe({ commit(entities = it, operation = operation) }, { })
 
                     dispBag.add(d)
@@ -583,13 +434,12 @@ class EntityObservableCollectionExtra<K: Comparable<K>, E: Entity<K>, Collection
 
         commitDeleteByKeys(keys = deleteKeys)
 
-        val r = repository
-        val factory = entityFactory
-        if (r != null && factory != null)
+        val r = arrayFetchCallback
+        if (r != null)
         {
-            val d = r._RxGet(keys = otherKeys)
+            val d = r(KeyParams(keys = otherKeys))
                 .observeOn(queue)
-                .flatMap { RxRequestForCombine(source = "", entities = it.map { factory.map(entity = it) }, updateChilds = false).map { it } }
+                .flatMap { RxRequestForCombine(source = "", entities = it, updateChilds = false).map { it } }
                 .subscribe({ commit(entities = it, operations = otherOpers) }, {  })
 
             dispBag.add(d)

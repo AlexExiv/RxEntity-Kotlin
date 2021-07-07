@@ -15,29 +15,25 @@ data class EntityUpdated(val key: Any,
                          val entity: EntityBack<*>? = null,
                          val operation: UpdateOperation = UpdateOperation.None)
 
-interface EntityRepositoryInterface<Key: Comparable<Key>>
+interface EntityRepositoryInterface<Key: Comparable<Key>, EB: EntityBack<Key>>
 {
     val rxEntitiesUpdated: PublishSubject<List<EntityUpdated>>
 
-    fun _RxGet(key: Key): Single<Optional<EntityBack<Key>>>
-    fun _RxGet(keys: List<Key>): Single<List<EntityBack<Key>>>
+    fun RxGet(key: Key): Single<Optional<EB>>
+    fun RxGet(keys: List<Key>): Single<List<EB>>
 }
 
-typealias EntityRepositoryInterfaceInt = EntityRepositoryInterface<Int>
-typealias EntityRepositoryInterfaceLong = EntityRepositoryInterface<Long>
-typealias EntityRepositoryInterfaceString = EntityRepositoryInterface<String>
-
-interface EntityAllRepositoryInterface<Key: Comparable<Key>>: EntityRepositoryInterface<Key>
+interface EntityAllRepositoryInterface<Key: Comparable<Key>, EB: EntityBack<Key>>: EntityRepositoryInterface<Key, EB>
 {
-    fun _RxFetchAll(): Single<List<EntityBack<Key>>>
+    fun RxFetchAll(): Single<List<EB>>
 }
 
-abstract class EntityRepository<Key: Comparable<Key>, EB: EntityBack<Key>>: EntityRepositoryInterface<Key>
+abstract class EntityRepository<Key: Comparable<Key>, EB: EntityBack<Key>>: EntityRepositoryInterface<Key, EB>
 {
     override var rxEntitiesUpdated = PublishSubject.create<List<EntityUpdated>>()
     val dispBag = CompositeDisposable()
 
-    fun <KeyN: Comparable<KeyN>, E, T> connect(repository: EntityRepositoryInterface<KeyN>, property: KProperty1<E, T>)
+    fun <KeyN: Comparable<KeyN>, E, T> connect(repository: EntityRepositoryInterface<KeyN, *>, property: KProperty1<E, T>)
     {
         val d = repository
             .rxEntitiesUpdated
@@ -48,10 +44,4 @@ abstract class EntityRepository<Key: Comparable<Key>, EB: EntityBack<Key>>: Enti
 
         dispBag.add(d)
     }
-
-    override fun _RxGet(key: Key) : Single<Optional<EntityBack<Key>>> = RxGet(key = key).map { Optional(it.value) }
-    override fun _RxGet(keys: List<Key>) : Single<List<EntityBack<Key>>> = RxGet(keys = keys).map { it }
-
-    abstract fun RxGet(key: Key) : Single<Optional<EB>>
-    abstract fun RxGet(keys: List<Key>) : Single<List<EB>>
 }
