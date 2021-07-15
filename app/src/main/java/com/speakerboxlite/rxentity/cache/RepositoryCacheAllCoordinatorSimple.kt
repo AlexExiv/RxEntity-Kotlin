@@ -90,14 +90,14 @@ class RepositoryCacheAllCoordinatorSimple<K: Comparable<K>, EB: EntityBack<K>>(
 
     private fun update()
     {
-        lock.lock()
-        if (updateState != State.Wait)
-            return
-
-        updateState = State.Updating
-
         try
         {
+            lock.lock()
+            if (updateState != State.Wait)
+                return
+
+            updateState = State.Updating
+
             val d = Observable
                 .interval(updateDelay.toLong(), 20, TimeUnit.SECONDS, queue)
                 .observeOn(queue)

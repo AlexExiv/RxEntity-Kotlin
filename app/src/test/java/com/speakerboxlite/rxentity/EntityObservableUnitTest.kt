@@ -164,7 +164,10 @@ class EntityObservableUnitTest
 
         disp.dispose()
 
-        single0.refresh(extra = ExtraParams("2"))
+        val s = single0 as SingleObservableInt<TestEntity>
+        s.refresh()
+
+        //single0.refresh(extra = ExtraParams("2"))
         disp = single0.subscribe {
             assertEquals(it.value!!.id, 1)
             assertEquals(it.value!!.value, "2")
