@@ -156,7 +156,8 @@ open class ArrayObservableExtra<K: Comparable<K>, E: Entity<K>, Extra>(holder: E
         lock.lock()
         try
         {
-            _entities.forEach {
+            val entities = _entities.toList()
+            entities.forEach {
                 if (keys.contains(it._key))
                     remove(key = it._key)
             }
@@ -257,7 +258,7 @@ open class ArrayObservableExtra<K: Comparable<K>, E: Entity<K>, Extra>(holder: E
         //assert( queue.operationQueue == OperationQueue.current, "_Refresh can be updated only from the specified in the constructor OperationQueue" )
         this.extra = extra ?: this.extra
         page = -1
-        if (perPage == ARRAY_PER_PAGE)
+        if (perPage != ARRAY_PER_PAGE || resetCache)
         {
             setEntities(listOf())
         }

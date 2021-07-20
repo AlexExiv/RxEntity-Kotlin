@@ -165,7 +165,7 @@ class EntityObservableUnitTest
         disp.dispose()
 
         val s = single0 as SingleObservableInt<TestEntity>
-        s.refresh()
+        single0.refresh(extra = ExtraParams(test = "2"))
 
         //single0.refresh(extra = ExtraParams("2"))
         disp = single0.subscribe {
