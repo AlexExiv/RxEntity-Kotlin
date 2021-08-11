@@ -46,7 +46,7 @@ class EntityObservableCollectionExtraBack<K: Comparable<K>, E: Entity<K>, EB: En
                         val keys = it.filter { it.entity == null && it.fieldPath == null }
                         val entities = it.filter { it.entity != null && it.fieldPath == null }
                         val indirect = it.filter { it.fieldPath != null }
-                            .map { k -> sharedEntities.values.filter { k.fieldPath!!.get(it)?.equals(k.key) == true }.map { it._key } }
+                            .map { k -> _sharedEntities.values.filter { k.fieldPath!!.get(it)?.equals(k.key) == true }.map { it._key } }
                             .flatten()
 
                         print( "Repository requested update: $it" )

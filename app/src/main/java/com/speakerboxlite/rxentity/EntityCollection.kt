@@ -12,19 +12,37 @@ abstract class EntityCollection<K: Comparable<K>, E: Entity<K>>(val queue: Sched
 {
     protected val lock = ReentrantLock()
 
-    val items = mutableListOf<WeakReference<EntityObservable<K, E, *>>>()
-    val sharedEntities = mutableMapOf<K, E>()
+    protected val items = mutableListOf<WeakReference<EntityObservable<K, E, *>>>()
 
-    val dispBag = CompositeDisposable()
+    val sharedEntities: Map<K, E> get() = _sharedEntities
+    protected val _sharedEntities = mutableMapOf<K, E>()
+
+    protected val dispBag = CompositeDisposable()
 
     fun add(obs: EntityObservable<K, E, *>)
     {
-        items.add(WeakReference(obs))
+        lock.lock()
+        try
+        {
+            items.add(WeakReference(obs))
+        }
+        finally
+        {
+            lock.unlock()
+        }
     }
 
     fun remove(obs: EntityObservable<K, E, *>)
     {
-        items.removeAll { obs.uuid == it.get()?.uuid }
+        lock.lock()
+        try
+        {
+            items.removeAll { obs.uuid == it.get()?.uuid }
+        }
+        finally
+        {
+            lock.unlock()
+        }
     }
 
     abstract fun RxRequestForCombine(source: String, entity: E, updateChilds: Boolean = true) : Single<E>
@@ -56,12 +74,28 @@ abstract class EntityCollection<K: Comparable<K>, E: Entity<K>>(val queue: Sched
 
     open fun update(source: String = "", entity: E)
     {
-        sharedEntities[entity._key] = entity
+        lock.lock()
+        try
+        {
+            _sharedEntities[entity._key] = entity
+        }
+        finally
+        {
+            lock.unlock()
+        }
     }
 
     open fun update(source: String = "", entities: List<E>)
     {
-        entities.forEach { sharedEntities[it._key] = it }
+        lock.lock()
+        try
+        {
+            entities.forEach { _sharedEntities[it._key] = it }
+        }
+        finally
+        {
+            lock.unlock()
+        }
     }
 
     abstract fun commit(entity: E, operation: UpdateOperation)

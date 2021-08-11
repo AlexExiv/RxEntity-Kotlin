@@ -45,7 +45,7 @@ open class EntityObservableCollectionExtra<K: Comparable<K>, E: Entity<K>, Colle
     fun createSingle(key: K? = null, start: Boolean = true, refresh: Boolean = false): SingleObservable<K, E>
     {
         assert(singleFetchCallback != null) { "To create Single with default fetch method must specify singleFetchCallback before" }
-        val e = sharedEntities[key]
+        val e = _sharedEntities[key]
         return if (e == null) createSingle(key = key, start = start, fetch = singleFetchCallback!!) else createSingle(e, refresh)
     }
 
@@ -242,8 +242,8 @@ open class EntityObservableCollectionExtra<K: Comparable<K>, E: Entity<K>, Colle
         try
         {
             val toUpdate = mutableMapOf<K , E>()
-            sharedEntities.keys.forEach {
-                var e = sharedEntities[it]!!
+            _sharedEntities.keys.forEach {
+                var e = _sharedEntities[it]!!
                 var updated = false
                 e = combines.fold(e) { a, c ->
                     val r = c.first.apply(a, c.second)
@@ -252,7 +252,7 @@ open class EntityObservableCollectionExtra<K: Comparable<K>, E: Entity<K>, Colle
                 }
 
                 if (updated) {
-                    sharedEntities[it] = e
+                    _sharedEntities[it] = e
                     toUpdate[it] = e
                 }
             }
@@ -276,7 +276,7 @@ open class EntityObservableCollectionExtra<K: Comparable<K>, E: Entity<K>, Colle
                 lock.lock()
                 try
                 {
-                    sharedEntities[entity._key] = entity
+                    _sharedEntities[entity._key] = entity
                     items.forEach { it.get()?.Update(entity = entity, operation = operation) }
                 }
                 finally
@@ -323,11 +323,11 @@ open class EntityObservableCollectionExtra<K: Comparable<K>, E: Entity<K>, Colle
         lock.lock()
         try
         {
-            val e = sharedEntities[key]
+            val e = _sharedEntities[key]
             if (e != null)
             {
                 val new = changes(e)
-                sharedEntities[key] = new
+                _sharedEntities[key] = new
                 items.forEach { it.get()?.Update(entity = new, operation = UpdateOperation.Update) }
             }
         }
@@ -350,10 +350,10 @@ open class EntityObservableCollectionExtra<K: Comparable<K>, E: Entity<K>, Colle
                 {
                     val forUpdate = mutableMapOf<K, E>()
                     entities.forEach {
-                        if (sharedEntities[it._key] != null)
+                        if (_sharedEntities[it._key] != null)
                             forUpdate[it._key] = it
 
-                        sharedEntities[it._key] = it
+                        _sharedEntities[it._key] = it
                     }
 
                     items.forEach { it.get()?.update(entities = forUpdate, operation = operation) }
@@ -382,11 +382,11 @@ open class EntityObservableCollectionExtra<K: Comparable<K>, E: Entity<K>, Colle
             val forUpdate = mutableMapOf<K , E>()
             val operationUpdate = mutableMapOf<K , UpdateOperation>()
             otherEntities.forEachIndexed { i, e ->
-                if (sharedEntities[e._key] != null)
+                if (_sharedEntities[e._key] != null)
                     forUpdate[e._key] = e
 
                 operationUpdate[e._key] = otherOpers[i]
-                sharedEntities[e._key] = e
+                _sharedEntities[e._key] = e
             }
 
             items.forEach { it.get()?.update(entities = forUpdate, operations = operationUpdate) }
@@ -457,11 +457,11 @@ open class EntityObservableCollectionExtra<K: Comparable<K>, E: Entity<K>, Colle
         {
             val forUpdate = mutableMapOf<K, E>()
             keys.forEach {
-                val e = sharedEntities[it]
+                val e = _sharedEntities[it]
                 if (e != null)
                 {
                     val new = changes(e)
-                    sharedEntities[it] = new
+                    _sharedEntities[it] = new
                     forUpdate[it] = new
                 }
             }
@@ -504,7 +504,7 @@ open class EntityObservableCollectionExtra<K: Comparable<K>, E: Entity<K>, Colle
     {
         val weak = WeakReference(this)
         return Single.create<Optional<E>> {
-                val entity = weak.get()?.sharedEntities?.get(key)
+                val entity = weak.get()?._sharedEntities?.get(key)
                 if (entity != null)
                 {
                     val new = update(entity)
@@ -528,11 +528,11 @@ open class EntityObservableCollectionExtra<K: Comparable<K>, E: Entity<K>, Colle
                 val updMap = mutableMapOf<K, E>()
 
                 keys.forEach {
-                    val entity = weak.get()?.sharedEntities?.get(it)
+                    val entity = weak.get()?._sharedEntities?.get(it)
                     if (entity != null)
                     {
                         val new = update(entity)
-                        weak.get()?.sharedEntities?.put(it, new)
+                        weak.get()?._sharedEntities?.put(it, new)
                         updArr.add(new)
                         updMap[it] = new
                     }
@@ -547,7 +547,7 @@ open class EntityObservableCollectionExtra<K: Comparable<K>, E: Entity<K>, Colle
 
     fun RxRequestForUpdate(source: String = "", update: (E) -> E): Single<List<E>>
     {
-        return RxRequestForUpdate(source = source, keys = sharedEntities.keys.map { it }, update = update)
+        return RxRequestForUpdate(source = source, keys = _sharedEntities.keys.map { it }, update = update)
     }
 
     fun refresh(resetCache: Boolean = false, collectionExtra: CollectionExtra? = null)
