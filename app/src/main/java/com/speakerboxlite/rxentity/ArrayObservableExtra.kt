@@ -55,7 +55,7 @@ open class ArrayObservableExtra<K: Comparable<K>, E: Entity<K>, Extra>(holder: E
             if (i != -1 && source != uuid)
             {
                 _entities[i] = entity
-                rxPublish.onNext(entities)
+                rxPublish.onNext(_entities.toMutableList())
             }
         }
         finally
@@ -81,7 +81,7 @@ open class ArrayObservableExtra<K: Comparable<K>, E: Entity<K>, Extra>(holder: E
                 }
 
                 if (was)
-                    rxPublish.onNext(_entities)
+                    rxPublish.onNext(_entities.toMutableList())
             }
         }
         finally
@@ -183,7 +183,7 @@ open class ArrayObservableExtra<K: Comparable<K>, E: Entity<K>, Extra>(holder: E
             if (i != -1)
             {
                 _entities[i] = entity
-                rxPublish.onNext(_entities)
+                rxPublish.onNext(_entities.toMutableList())
             }
         }
         finally
@@ -198,7 +198,7 @@ open class ArrayObservableExtra<K: Comparable<K>, E: Entity<K>, Extra>(holder: E
         try
         {
             _entities = entities.toMutableList()
-            rxPublish.onNext(_entities)
+            rxPublish.onNext(_entities.toMutableList())
         }
         finally
         {
@@ -212,7 +212,7 @@ open class ArrayObservableExtra<K: Comparable<K>, E: Entity<K>, Extra>(holder: E
         try
         {
             _entities.appendNotExistEntity(entity = entity)
-            rxPublish.onNext(_entities)
+            rxPublish.onNext(_entities.toMutableList())
         }
         finally
         {
@@ -226,7 +226,7 @@ open class ArrayObservableExtra<K: Comparable<K>, E: Entity<K>, Extra>(holder: E
         try
         {
             _entities.removeEntity(entity = entity)
-            rxPublish.onNext(_entities)
+            rxPublish.onNext(_entities.toMutableList())
         }
         finally
         {
@@ -240,7 +240,7 @@ open class ArrayObservableExtra<K: Comparable<K>, E: Entity<K>, Extra>(holder: E
         try
         {
             _entities.removeEntityByKey(key = key)
-            rxPublish.onNext(_entities)
+            rxPublish.onNext(_entities.toMutableList())
         }
         finally
         {
