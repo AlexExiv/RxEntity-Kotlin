@@ -96,6 +96,7 @@ class SingleObservableCollectionExtra<K: Comparable<K>, E: Entity<K>, Extra, Col
             }
             .observeOn(queue)
             .doOnNext {
+                //weak.get()?.setSuperKey(it.value?._key)
                 weak.get()?.rxLoader?.onNext(Loading.None)
                 weak.get()?.rxState?.onNext(if (it.exist()) State.Ready else State.NotFound)
             }
@@ -149,6 +150,20 @@ class SingleObservableCollectionExtra<K: Comparable<K>, E: Entity<K>, Extra, Col
         this.collectionExtra = collectionExtra ?: this.collectionExtra
         _rxRefresh.onNext(SingleParams(refreshing = true, resetCache = resetCache, first = !started, key = key, last = entity, extra = this.extra, collectionExtra = this.collectionExtra))
         started = true
+    }
+
+    private fun setSuperKey(key: K?)
+    {
+        lock.lock()
+        try
+        {
+            if (key != null)
+                super.key = key
+        }
+        finally
+        {
+            lock.unlock()
+        }
     }
 }
 

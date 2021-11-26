@@ -78,6 +78,7 @@ abstract class EntityCollection<K: Comparable<K>, E: Entity<K>>(val queue: Sched
         try
         {
             _sharedEntities[entity._key] = entity
+            items.forEach { it.get()?.update(source = "", entity = entity) }
         }
         finally
         {
@@ -90,7 +91,11 @@ abstract class EntityCollection<K: Comparable<K>, E: Entity<K>>(val queue: Sched
         lock.lock()
         try
         {
-            entities.forEach { _sharedEntities[it._key] = it }
+            val map = entities.associateBy {
+                _sharedEntities[it._key] = it
+                it._key
+            }
+            items.forEach { it.get()?.update(source = "", entities = map) }
         }
         finally
         {
