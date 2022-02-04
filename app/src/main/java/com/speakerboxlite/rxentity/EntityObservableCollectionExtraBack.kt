@@ -14,12 +14,6 @@ typealias PageFetchBackCallback<K, EB, Extra, CollectionExtra> = (PageParams<K, 
 class EntityObservableCollectionExtraBack<K: Comparable<K>, E: Entity<K>, EB: EntityBack<K>, CollectionExtra>(val clazz: KClass<E>, queue: Scheduler, collectionExtra: CollectionExtra? = null):
     EntityObservableCollectionExtra<K, E, CollectionExtra>(queue, collectionExtra)
 {
-    companion object
-    {
-        inline fun <K: Comparable<K>, reified E: Entity<K>, EB: EntityBack<K>, CollectionExtra> create(queue: Scheduler, collectionExtra: CollectionExtra? = null) =
-            EntityObservableCollectionExtraBack<K, E, EB, CollectionExtra>(E::class, queue, collectionExtra)
-    }
-
     var repository: EntityRepositoryInterface<K, EB>? = null
         set(value)
         {

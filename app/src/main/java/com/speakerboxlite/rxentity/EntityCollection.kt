@@ -116,4 +116,31 @@ abstract class EntityCollection<K: Comparable<K>, E: Entity<K>>(val queue: Sched
 
     abstract fun createSingle(initial: E, refresh: Boolean = false): SingleObservable<K, E>
     abstract fun createKeyArray(initial: List<E>): ArrayKeyObservable<K, E>
+
+    companion object
+    {
+        fun <K: Comparable<K>, E: Entity<K>, CollectionExtra> create(queue: Scheduler, collectionExtra: CollectionExtra? = null) =
+            EntityObservableCollectionExtra<K, E, CollectionExtra>(queue, collectionExtra)
+
+        fun <E: Entity<String>, CollectionExtra> createString(queue: Scheduler, collectionExtra: CollectionExtra? = null) =
+            EntityObservableCollectionExtra<String, E, CollectionExtra>(queue, collectionExtra)
+
+        fun <E: Entity<Long>, CollectionExtra> createLong(queue: Scheduler, collectionExtra: CollectionExtra? = null) =
+            EntityObservableCollectionExtra<Long, E, CollectionExtra>(queue, collectionExtra)
+
+        fun <E: Entity<Int>, CollectionExtra> createInt(queue: Scheduler, collectionExtra: CollectionExtra? = null) =
+            EntityObservableCollectionExtra<Int, E, CollectionExtra>(queue, collectionExtra)
+
+        inline fun <K: Comparable<K>, reified E: Entity<K>, EB: EntityBack<K>, CollectionExtra> createBack(queue: Scheduler, collectionExtra: CollectionExtra? = null) =
+            EntityObservableCollectionExtraBack<K, E, EB, CollectionExtra>(E::class, queue, collectionExtra)
+
+        inline fun <reified E: Entity<String>, EB: EntityBack<String>, CollectionExtra> createBackString(queue: Scheduler, collectionExtra: CollectionExtra? = null) =
+            EntityObservableCollectionExtraBack<String, E, EB, CollectionExtra>(E::class, queue, collectionExtra)
+
+        inline fun <reified E: Entity<Int>, EB: EntityBack<Int>, CollectionExtra> createBackInt(queue: Scheduler, collectionExtra: CollectionExtra? = null) =
+            EntityObservableCollectionExtraBack<Int, E, EB, CollectionExtra>(E::class, queue, collectionExtra)
+
+        inline fun <reified E: Entity<Long>, EB: EntityBack<Long>, CollectionExtra> createBackLong(queue: Scheduler, collectionExtra: CollectionExtra? = null) =
+            EntityObservableCollectionExtraBack<Long, E, EB, CollectionExtra>(E::class, queue, collectionExtra)
+    }
 }
