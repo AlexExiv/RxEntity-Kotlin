@@ -3,15 +3,22 @@ package com.speakerboxlite.rxentity
 import io.reactivex.rxjava3.core.Scheduler
 import io.reactivex.rxjava3.core.Single
 import io.reactivex.rxjava3.disposables.Disposable
+import kotlin.reflect.KClass
+import kotlin.reflect.KFunction
+import kotlin.reflect.jvm.isAccessible
 
 typealias SingleFetchBackCallback<K, E, EB, Extra, CollectionExtra> = (SingleParams<K, E, Extra, CollectionExtra>) -> Single<Optional<EB>>
 typealias ArrayFetchBackCallback<K, EB, Extra, CollectionExtra> = (KeyParams<K, Extra, CollectionExtra>) -> Single<List<EB>>
 typealias PageFetchBackCallback<K, EB, Extra, CollectionExtra> = (PageParams<K, Extra, CollectionExtra>) -> Single<List<EB>>
 
-class EntityObservableCollectionExtraBack<K: Comparable<K>, E: Entity<K>, EB: EntityBack<K>, CollectionExtra>(queue: Scheduler, collectionExtra: CollectionExtra? = null):
+class EntityObservableCollectionExtraBack<K: Comparable<K>, E: Entity<K>, EB: EntityBack<K>, CollectionExtra>(val clazz: KClass<E>, queue: Scheduler, collectionExtra: CollectionExtra? = null):
     EntityObservableCollectionExtra<K, E, CollectionExtra>(queue, collectionExtra)
 {
-    var entityFactory: EntityFactory<K, EB, E>? = null
+    companion object
+    {
+        inline fun <K: Comparable<K>, reified E: Entity<K>, EB: EntityBack<K>, CollectionExtra> create(queue: Scheduler, collectionExtra: CollectionExtra? = null) =
+            EntityObservableCollectionExtraBack<K, E, EB, CollectionExtra>(E::class, queue, collectionExtra)
+    }
 
     var repository: EntityRepositoryInterface<K, EB>? = null
         set(value)
@@ -25,13 +32,13 @@ class EntityObservableCollectionExtraBack<K: Comparable<K>, E: Entity<K>, EB: En
                     else
                         value
                             .RxGet(it.key)
-                            .map { Optional(if (it.value == null) null else entityFactory!!.map(it.value)) }
+                            .map { Optional(if (it.value == null) null else map(it.value)) }
                 }
 
-                arrayFetchCallback = { value.RxGet(it.keys).map { it.map { entityFactory!!.map(it) } } }
+                arrayFetchCallback = { value.RxGet(it.keys).map { it.map { map(it) } } }
                 if (value is EntityAllRepositoryInterface<K, EB>)
                 {
-                    allArrayFetchCallback = { value.RxFetchAll().map { it.map { entityFactory!!.map(it) } } }
+                    allArrayFetchCallback = { value.RxFetchAll().map { it.map { map(it) } } }
                 }
                 else
                 {
@@ -72,7 +79,7 @@ class EntityObservableCollectionExtraBack<K: Comparable<K>, E: Entity<K>, EB: En
 
                         if (entities.size > 0)
                         {
-                            commit(entities = entities.map { it.entity!! }.map { entityFactory!!.map(it as EB) }, operations = entities.map { it.operation })
+                            commit(entities = entities.map { it.entity!! }.map { map(it as EB) }, operations = entities.map { it.operation })
                         }
                     }
 
@@ -87,7 +94,38 @@ class EntityObservableCollectionExtraBack<K: Comparable<K>, E: Entity<K>, EB: En
         }
 
     protected var reposDisp: Disposable? = null
+    protected var ebConstructor: KFunction<E>? = null
 
+    protected fun getConstructor(): KFunction<E>
+    {
+        lock.lock()
+        try
+        {
+            if (ebConstructor == null)
+            {
+                for (f in clazz.constructors)
+                {
+                    if (f.parameters.size == 1 && (f.parameters[0].type.classifier as? KClass<EB>) != null)
+                    {
+                        ebConstructor = f
+                        f.isAccessible = true
+                        break
+                    }
+                }
+
+                if (ebConstructor == null)
+                    assert(false) { "${clazz.simpleName} have to has constructor" }
+            }
+
+            return ebConstructor!!
+        }
+        finally
+        {
+            lock.unlock()
+        }
+    }
+
+    protected fun map(eb: EB): E = getConstructor().call(eb)
 
     /**
      * TODO
@@ -100,7 +138,7 @@ class EntityObservableCollectionExtraBack<K: Comparable<K>, E: Entity<K>, EB: En
     fun createSingleBack(key: K? = null, start: Boolean = true, fetch: SingleFetchBackCallback<K, E, EB, EntityCollectionExtraParamsEmpty, CollectionExtra>): SingleObservable<K, E>
     {
         return SingleObservableCollectionExtra(holder = this, queue = queue, key = key, collectionExtra = collectionExtra, start = start,
-            fetch = { fetch(it).map { Optional(if (it.value == null) null else entityFactory!!.map(it.value)) } })
+            fetch = { fetch(it).map { Optional(if (it.value == null) null else map(it.value)) } })
     }
 
     /**
@@ -115,43 +153,43 @@ class EntityObservableCollectionExtraBack<K: Comparable<K>, E: Entity<K>, EB: En
     fun <Extra> createSingleBackExtra(key: K? = null, extra: Extra? = null, start: Boolean = true, fetch: SingleFetchBackCallback<K, E, EB, Extra, CollectionExtra>): SingleObservableExtra<K, E, Extra>
     {
         return SingleObservableCollectionExtra(holder = this, queue = queue, key = key, extra = extra, collectionExtra = collectionExtra, start = start,
-            fetch = { fetch(it).map { Optional(if (it.value == null) null else entityFactory!!.map(it.value)) } })
+            fetch = { fetch(it).map { Optional(if (it.value == null) null else map(it.value)) } })
     }
 
     fun createKeyArrayBack(keys: List<K> = listOf(), start: Boolean = true, fetch: ArrayFetchBackCallback<K, EB, EntityCollectionExtraParamsEmpty, CollectionExtra>): ArrayKeyObservable<K, E>
     {
         return ArrayKeyObservableCollectionExtra(holder = this, queue = queue, keys = keys, collectionExtra = collectionExtra, start = start,
-            fetch = { fetch(it).map { it.map { entityFactory!!.map(it) } } })
+            fetch = { fetch(it).map { it.map { map(it) } } })
     }
 
     fun <Extra> createKeyArrayBackExtra(keys: List<K> = listOf(), extra: Extra? = null, start: Boolean = true, fetch: ArrayFetchBackCallback<K, EB, Extra, CollectionExtra>): ArrayKeyObservableExtra<K, E, Extra>
     {
         return ArrayKeyObservableCollectionExtra(holder = this, queue = queue, keys = keys, extra = extra, collectionExtra = collectionExtra, start = start,
-            fetch = { fetch(it).map { it.map { entityFactory!!.map(it) } } })
+            fetch = { fetch(it).map { it.map { map(it) } } })
     }
 
     fun createArrayBack(start: Boolean = true, fetch: PageFetchBackCallback<K, EB, EntityCollectionExtraParamsEmpty, CollectionExtra>): ArrayObservable<K, E>
     {
         return PaginatorObservableCollectionExtra(holder = this, queue = queue, collectionExtra = collectionExtra, start = start,
-            fetch = { fetch(it).map { it.map { entityFactory!!.map(it) } } })
+            fetch = { fetch(it).map { it.map { map(it) } } })
     }
 
     fun <Extra> createArrayBackExtra(extra: Extra? = null, start: Boolean = true, fetch: PageFetchBackCallback<K, EB, Extra, CollectionExtra>): ArrayObservableExtra<K, E, Extra>
     {
         return PaginatorObservableCollectionExtra(holder = this, queue = queue, extra = extra, collectionExtra = collectionExtra, start = start,
-            fetch = { fetch(it).map { it.map { entityFactory!!.map(it) } } })
+            fetch = { fetch(it).map { it.map { map(it) } } })
     }
 
     fun createPaginatorBack(perPage: Int = 35, start: Boolean = true, fetch: PageFetchBackCallback<K, EB, EntityCollectionExtraParamsEmpty, CollectionExtra>): PaginatorObservable<K, E>
     {
         return PaginatorObservableCollectionExtra(holder = this, queue = queue, collectionExtra = collectionExtra, perPage = perPage, start = start,
-            fetch = { fetch(it).map { it.map { entityFactory!!.map(it) } } })
+            fetch = { fetch(it).map { it.map { map(it) } } })
     }
 
     fun <Extra> createPaginatorBackExtra(extra: Extra? = null, perPage: Int = 35, start: Boolean = true, fetch: PageFetchBackCallback<K, EB, Extra, CollectionExtra>): PaginatorObservableExtra<K, E, Extra>
     {
         return PaginatorObservableCollectionExtra(holder = this, queue = queue, extra = extra, collectionExtra = collectionExtra, perPage = perPage, start = start,
-            fetch = { fetch(it).map { it.map { entityFactory!!.map(it) } } })
+            fetch = { fetch(it).map { it.map { map(it) } } })
     }
 }
 

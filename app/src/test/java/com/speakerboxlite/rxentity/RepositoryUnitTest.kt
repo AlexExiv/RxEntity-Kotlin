@@ -122,9 +122,9 @@ class RepositoryUnitTest
         val repository = TestRepository<TestEntityBack>()
         repository.Add(entities = listOf(TestEntityBack(id = 1, value = "test1"), TestEntityBack(id = 2, value = "test2")))
 
-        val collection = EntityObservableCollectionExtraBackInt<TestEntity, TestEntityBack, ExtraCollectionParams>(Schedulers.trampoline(), collectionExtra = ExtraCollectionParams(test="2"))
+        val collection = EntityObservableCollectionExtraBackInt<TestEntity, TestEntityBack, ExtraCollectionParams>(TestEntity::class, Schedulers.trampoline(), collectionExtra = ExtraCollectionParams(test="2"))
         collection.repository = repository
-        collection.entityFactory = TestEntityMapper() as EntityFactory<Int, EntityBack<Int>, TestEntity>
+        //collection.entityFactory = TestEntityMapper() as EntityFactory<Int, EntityBack<Int>, TestEntity>
 
         val allArray = collection.createArrayBack { Single.just(repository.items) }
         val array = collection.createKeyArray(keys = listOf(1, 2))
@@ -171,9 +171,8 @@ class RepositoryUnitTest
         val repository = TestRepository<TestEntityBack>()
         repository.Add(entities = listOf(TestEntityBack(id = 1, value = "test1"), TestEntityBack(id = 2, value = "test2")))
 
-        val collection = EntityObservableCollectionExtraBackInt<TestEntity, TestEntityBack, ExtraCollectionParams>(Schedulers.trampoline(), collectionExtra = ExtraCollectionParams(test="2"))
+        val collection = EntityObservableCollectionExtraBackInt<TestEntity, TestEntityBack, ExtraCollectionParams>(TestEntity::class, Schedulers.trampoline(), collectionExtra = ExtraCollectionParams(test="2"))
         collection.repository = repository
-        collection.entityFactory = TestEntityMapper() as EntityFactory<Int, EntityBack<Int>, TestEntity>
 
         val allArray = collection.createArrayBack { Single.just(repository.items) }
         val array = collection.createKeyArray(keys = listOf(1, 2))
@@ -200,9 +199,8 @@ class RepositoryUnitTest
         val repository = TestRepository<TestEntityBack>()
         repository.Add(entities = listOf(TestEntityBack(id = 1, value = "test1"), TestEntityBack(id = 2, value = "test2")))
 
-        val collection = EntityObservableCollectionExtraBackInt<TestEntity, TestEntityBack, ExtraCollectionParams>(Schedulers.trampoline(), collectionExtra = ExtraCollectionParams(test="2"))
+        val collection = EntityObservableCollectionExtraBackInt<TestEntity, TestEntityBack, ExtraCollectionParams>(TestEntity::class, Schedulers.trampoline(), collectionExtra = ExtraCollectionParams(test="2"))
         collection.repository = repository
-        collection.entityFactory = TestEntityMapper() as EntityFactory<Int, EntityBack<Int>, TestEntity>
 
         val allArray = collection.createArrayBack { Single.just(repository.items) }
         val array = collection.createKeyArray(keys = listOf(1, 2))
@@ -228,9 +226,8 @@ class RepositoryUnitTest
 
         repository.connect(repositoryIndirect, TestEntity::indirectId)
 
-        val collection = EntityObservableCollectionExtraBackInt<TestEntity, TestEntityBack, ExtraCollectionParams>(Schedulers.trampoline(), collectionExtra = ExtraCollectionParams(test="2"))
+        val collection = EntityObservableCollectionExtraBackInt<TestEntity, TestEntityBack, ExtraCollectionParams>(TestEntity::class, Schedulers.trampoline(), collectionExtra = ExtraCollectionParams(test="2"))
         collection.repository = repository
-        collection.entityFactory = TestEntityMapper() as EntityFactory<Int, EntityBack<Int>, TestEntity>
 
         val single = collection.createSingle(key = 1)
         val array = collection.createKeyArray(keys = listOf(1, 2))

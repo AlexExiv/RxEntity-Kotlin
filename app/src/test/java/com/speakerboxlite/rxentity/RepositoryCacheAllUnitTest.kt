@@ -35,6 +35,8 @@ private data class TestEntityOut(
     val value: String): EntityInt
 {
     override val _key: Int get() = id
+
+    constructor(entity: TestEntityBackInterface): this(entity.id, entity.value)
 }
 
 private class RepositorySrc: EntityRepository<Int, TestEntityBackInterface>(), RepositoryCacheAllSourceInterface<Int, TestEntityBackInterface>
@@ -102,9 +104,8 @@ class RepositoryCacheAllUnitTest
 
         srcRep.add(entities = listOf(TestEntityBackSrc(id = 1, value = "test1"), TestEntityBackSrc(id = 2, value = "test2")))
 
-        val collection = EntityObservableCollectionExtraBackInt<TestEntityOut, TestEntityBackInterface, ExtraCollectionParams>(Schedulers.trampoline(), collectionExtra = ExtraCollectionParams(test="2"))
+        val collection = EntityObservableCollectionExtraBackInt<TestEntityOut, TestEntityBackInterface, ExtraCollectionParams>(TestEntityOut::class, Schedulers.trampoline(), collectionExtra = ExtraCollectionParams(test="2"))
         collection.repository = coordinatorSimple
-        collection.entityFactory = TestEntityOutMapper()
 
         val allArray = collection.createArray()
         var d = allArray.subscribe {
@@ -128,9 +129,9 @@ class RepositoryCacheAllUnitTest
 
         srcRep.add(entities = listOf(TestEntityBackSrc(id = 1, value = "test1"), TestEntityBackSrc(id = 2, value = "test2")))
 
-        val collection = EntityObservableCollectionExtraBackInt<TestEntityOut, TestEntityBackInterface, ExtraCollectionParams>(Schedulers.trampoline(), collectionExtra = ExtraCollectionParams(test="2"))
+        val collection = EntityObservableCollectionExtraBackInt<TestEntityOut, TestEntityBackInterface, ExtraCollectionParams>(TestEntityOut::class, Schedulers.trampoline(), collectionExtra = ExtraCollectionParams(test="2"))
         collection.repository = coordinatorSimple
-        collection.entityFactory = TestEntityOutMapper()
+        //collection.entityFactory = TestEntityOutMapper()
 
         val single = collection.createSingle()
         single.key = 1
