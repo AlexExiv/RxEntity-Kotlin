@@ -104,7 +104,7 @@ class RepositoryCacheAllUnitTest
 
         srcRep.add(entities = listOf(TestEntityBackSrc(id = 1, value = "test1"), TestEntityBackSrc(id = 2, value = "test2")))
 
-        val collection = EntityObservableCollectionExtraBackInt<TestEntityOut, TestEntityBackInterface, ExtraCollectionParams>(TestEntityOut::class, Schedulers.trampoline(), collectionExtra = ExtraCollectionParams(test="2"))
+        val collection = EntityCollection.createBackInt<TestEntityOut, TestEntityBackInterface, ExtraCollectionParams>(Schedulers.trampoline(), collectionExtra = ExtraCollectionParams(test="2"))
         collection.repository = coordinatorSimple
 
         val allArray = collection.createArray()
@@ -129,7 +129,7 @@ class RepositoryCacheAllUnitTest
 
         srcRep.add(entities = listOf(TestEntityBackSrc(id = 1, value = "test1"), TestEntityBackSrc(id = 2, value = "test2")))
 
-        val collection = EntityObservableCollectionExtraBackInt<TestEntityOut, TestEntityBackInterface, ExtraCollectionParams>(TestEntityOut::class, Schedulers.trampoline(), collectionExtra = ExtraCollectionParams(test="2"))
+        val collection = EntityCollection.createBackInt<TestEntityOut, TestEntityBackInterface, ExtraCollectionParams>(Schedulers.trampoline(), collectionExtra = ExtraCollectionParams(test="2"))
         collection.repository = coordinatorSimple
         //collection.entityFactory = TestEntityOutMapper()
 

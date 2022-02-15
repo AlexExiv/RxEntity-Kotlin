@@ -15,7 +15,10 @@ data class TestEntity(val id: Int,
     override val _key: Int
         get() = id
 
+    constructor(map: Map<String, Any>): this(0, "")
+
     constructor(entity: TestEntityBackProtocol): this(entity.id, entity.value, entity.indirectId, entity.indirectValue)
+
 }
 /*
 data class TestEntityBack(val id: Int, val value: String): EntityBack<Int>

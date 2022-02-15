@@ -11,7 +11,7 @@ typealias SingleFetchBackCallback<K, E, EB, Extra, CollectionExtra> = (SinglePar
 typealias ArrayFetchBackCallback<K, EB, Extra, CollectionExtra> = (KeyParams<K, Extra, CollectionExtra>) -> Single<List<EB>>
 typealias PageFetchBackCallback<K, EB, Extra, CollectionExtra> = (PageParams<K, Extra, CollectionExtra>) -> Single<List<EB>>
 
-class EntityObservableCollectionExtraBack<K: Comparable<K>, E: Entity<K>, EB: EntityBack<K>, CollectionExtra>(val clazz: KClass<E>, queue: Scheduler, collectionExtra: CollectionExtra? = null):
+class EntityObservableCollectionExtraBack<K: Comparable<K>, E: Entity<K>, EB: EntityBack<K>, CollectionExtra>(val clazz: KClass<E>, val clazzEB: KClass<EB>, queue: Scheduler, collectionExtra: CollectionExtra? = null):
     EntityObservableCollectionExtra<K, E, CollectionExtra>(queue, collectionExtra)
 {
     var repository: EntityRepositoryInterface<K, EB>? = null
@@ -101,7 +101,7 @@ class EntityObservableCollectionExtraBack<K: Comparable<K>, E: Entity<K>, EB: En
                 for (f in clazz.constructors)
                 {
                     println("PARAMETERS COUNT: ${f.parameters.size}; TYPES: ${f.parameters.map { it.type.classifier?.toString() }}")
-                    if (f.parameters.size == 1 && (f.parameters[0].type.classifier as? KClass<EB>) != null)
+                    if (f.parameters.size == 1 && (f.parameters[0].type.classifier as? KClass<*>) == clazzEB)
                     {
                         ebConstructor = f
                         f.isAccessible = true

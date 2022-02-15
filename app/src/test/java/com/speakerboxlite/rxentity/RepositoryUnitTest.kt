@@ -86,9 +86,9 @@ open class TestRepository<Entity: EntityBackInt>: EntityRepository<Int, Entity>(
 
 typealias TestRepositoryIndirect = TestRepository<IndirectEntityBack>
 
-class TestRepositoryDirect(val second: TestRepositoryIndirect): TestRepository<TestEntityBack>()
+class TestRepositoryDirect(val second: TestRepositoryIndirect): TestRepository<TestEntityBackProtocol>()
 {
-    override fun RxGet(key: Int): Single<Optional<TestEntityBack>> = super.RxGet(key = key)
+    override fun RxGet(key: Int): Single<Optional<TestEntityBackProtocol>> = super.RxGet(key = key)
         .flatMap {
             if (it.value == null)
                 Single.just(Optional(null))
@@ -96,10 +96,10 @@ class TestRepositoryDirect(val second: TestRepositoryIndirect): TestRepository<T
                 RxLoad(entities = listOf(it.value!!)).map { Optional(it.firstOrNull()) }
         }
 
-    override fun RxGet(keys: List<Int>): Single<List<TestEntityBack>> =
+    override fun RxGet(keys: List<Int>): Single<List<TestEntityBackProtocol>> =
         super.RxGet(keys = keys).flatMap { this.RxLoad(entities = it) }
 
-    fun RxLoad(entities: List<TestEntityBack>): Single<List<TestEntityBack>>
+    fun RxLoad(entities: List<TestEntityBackProtocol>): Single<List<TestEntityBackProtocol>>
     {
         val keys = entities.map { it.indirectId }
         return second
@@ -119,10 +119,10 @@ class RepositoryUnitTest
     @Test
     fun testRepositories()
     {
-        val repository = TestRepository<TestEntityBack>()
+        val repository = TestRepository<TestEntityBackProtocol>()
         repository.Add(entities = listOf(TestEntityBack(id = 1, value = "test1"), TestEntityBack(id = 2, value = "test2")))
 
-        val collection = EntityObservableCollectionExtraBackInt<TestEntity, TestEntityBack, ExtraCollectionParams>(TestEntity::class, Schedulers.trampoline(), collectionExtra = ExtraCollectionParams(test="2"))
+        val collection = EntityCollection.createBackInt<TestEntity, TestEntityBackProtocol, ExtraCollectionParams>(Schedulers.trampoline(), collectionExtra = ExtraCollectionParams(test="2"))
         collection.repository = repository
         //collection.entityFactory = TestEntityMapper() as EntityFactory<Int, EntityBack<Int>, TestEntity>
 
@@ -168,10 +168,10 @@ class RepositoryUnitTest
     @Test
     fun testRepositoriesClear()
     {
-        val repository = TestRepository<TestEntityBack>()
+        val repository = TestRepository<TestEntityBackProtocol>()
         repository.Add(entities = listOf(TestEntityBack(id = 1, value = "test1"), TestEntityBack(id = 2, value = "test2")))
 
-        val collection = EntityObservableCollectionExtraBackInt<TestEntity, TestEntityBack, ExtraCollectionParams>(TestEntity::class, Schedulers.trampoline(), collectionExtra = ExtraCollectionParams(test="2"))
+        val collection = EntityCollection.createBackInt<TestEntity, TestEntityBackProtocol, ExtraCollectionParams>(Schedulers.trampoline(), collectionExtra = ExtraCollectionParams(test="2"))
         collection.repository = repository
 
         val allArray = collection.createArrayBack { Single.just(repository.items) }
@@ -196,10 +196,10 @@ class RepositoryUnitTest
     @Test
     fun testArrayRefresh()
     {
-        val repository = TestRepository<TestEntityBack>()
+        val repository = TestRepository<TestEntityBackProtocol>()
         repository.Add(entities = listOf(TestEntityBack(id = 1, value = "test1"), TestEntityBack(id = 2, value = "test2")))
 
-        val collection = EntityObservableCollectionExtraBackInt<TestEntity, TestEntityBack, ExtraCollectionParams>(TestEntity::class, Schedulers.trampoline(), collectionExtra = ExtraCollectionParams(test="2"))
+        val collection = EntityCollection.createBackInt<TestEntity, TestEntityBackProtocol, ExtraCollectionParams>(Schedulers.trampoline(), collectionExtra = ExtraCollectionParams(test="2"))
         collection.repository = repository
 
         val allArray = collection.createArrayBack { Single.just(repository.items) }
@@ -226,7 +226,7 @@ class RepositoryUnitTest
 
         repository.connect(repositoryIndirect, TestEntity::indirectId)
 
-        val collection = EntityObservableCollectionExtraBackInt<TestEntity, TestEntityBack, ExtraCollectionParams>(TestEntity::class, Schedulers.trampoline(), collectionExtra = ExtraCollectionParams(test="2"))
+        val collection = EntityCollection.createBackInt<TestEntity, TestEntityBackProtocol, ExtraCollectionParams>(Schedulers.trampoline(), collectionExtra = ExtraCollectionParams(test="2"))
         collection.repository = repository
 
         val single = collection.createSingle(key = 1)
