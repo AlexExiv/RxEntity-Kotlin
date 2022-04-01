@@ -146,6 +146,33 @@ class EntityObservableUnitTest
         }
     }*/
 
+
+    @Test
+    fun testDisposed()
+    {
+        val collection = EntityObservableCollectionInt<TestEntity>(Schedulers.trampoline())
+        val single0 = collection.createSingleExtra(key = 1, extra = ExtraParams(test = "1")) { Single.just(Optional(null)) }
+        val page0 = collection.createPaginatorExtra(extra = ExtraParams(test = "1")) { Single.just(listOf()) }
+
+        var getInside0 = false
+        var getInside1 = false
+        val disp0 = single0.subscribe {
+            getInside0 = true
+        }
+        val disp1 = page0.subscribe {
+            getInside1 = true
+        }
+
+        disp0.dispose()
+        disp1.dispose()
+
+        assertEquals(true, single0.disposed)
+        assertEquals(true, page0.disposed)
+
+        assertEquals(true, getInside0)
+        assertEquals(true, getInside1)
+    }
+
     @Test
     fun testExtra()
     {
@@ -162,7 +189,7 @@ class EntityObservableUnitTest
             Single.just(Optional(TestEntity(1, it.extra!!.test)))
         }
 
-        var disp = single0.subscribe {
+        var disp = single0.toObservable().subscribe {
             assertEquals(it.value!!.id, 1)
             assertEquals(it.value!!.value, "1")
         }
@@ -193,7 +220,7 @@ class EntityObservableUnitTest
             Single.just(listOf(TestEntity(1, it.extra!!.test), TestEntity(2, it.extra!!.test + "1")))
         }
 
-        disp = page0.subscribe {
+        disp = page0.toObservable().subscribe {
             assertEquals(it[0].id, 1)
             assertEquals(it[0].value, "1")
 
@@ -296,14 +323,14 @@ class EntityObservableUnitTest
         }
 
         val single0 = page0[0]
-        var disp = single0.subscribe {
+        var disp = single0.toObservable().subscribe {
             assertEquals(it.value!!.id, 1)
             assertEquals(it.value!!.value, "21")
         }
         disp.dispose()
 
         val single1 = page0[1]
-        disp = single1.subscribe {
+        disp = single1.toObservable().subscribe {
             assertEquals(it.value!!.id, 2)
             assertEquals(it.value!!.value, "22")
         }
@@ -313,13 +340,13 @@ class EntityObservableUnitTest
         single1.refresh()
 
 
-        disp = single0.subscribe {
+        disp = single0.toObservable().subscribe {
             assertEquals(it.value!!.id, 1)
             assertEquals(it.value!!.value, "21")
         }
         disp.dispose()
 
-        disp = single1.subscribe {
+        disp = single1.toObservable().subscribe {
             assertEquals(it.value!!.id, 2)
             assertEquals(it.value!!.value, "22")
         }
@@ -358,7 +385,7 @@ class EntityObservableUnitTest
         }
 
         val array = collection.createKeyArray(initial = listOf(TestEntity(1, "2"), TestEntity(2, "3")))
-        var disp = array.subscribe {
+        var disp = array.toObservable().subscribe {
             assertEquals(it[0].id, 1)
             assertEquals(it[0].value, "2")
             assertEquals(it[1].id, 2)
@@ -368,7 +395,7 @@ class EntityObservableUnitTest
 
         collection.refresh()
 
-        disp = array.subscribe {
+        disp = array.toObservable().subscribe {
             assertEquals(it[0].id, 1)
             assertEquals(it[0].value, "21")
             assertEquals(it[1].id, 2)
@@ -448,7 +475,7 @@ class EntityObservableUnitTest
         collection.combineLatest(rxObs1) { e, t -> Pair(e.copy(value = t), true) }
         val single0 = collection.createSingle(1) { Single.just(Optional(TestEntity(1, "1"))) }
 
-        var disp = single0.subscribe {
+        var disp = single0.toObservable().subscribe {
             assertEquals(it.value!!.id, 1)
             assertEquals(it.value!!.value, "3")
         }
@@ -456,7 +483,7 @@ class EntityObservableUnitTest
 
         rxObs.onNext("4")
         rxObs1.onNext("4")
-        disp = single0.subscribe {
+        disp = single0.toObservable().subscribe {
             assertEquals(it.value!!.id, 1)
             assertEquals(it.value!!.value, "4")
         }
@@ -486,7 +513,7 @@ class EntityObservableUnitTest
                 Single.just(listOf(TestEntity(3, "1"), TestEntity(4, "1")))
         }
 
-        var disp = pager.subscribe {
+        var disp = pager.toObservable().subscribe {
             assertEquals(it.size, 2)
             assertEquals(it[0].id, 1)
             assertEquals(it[0].value, "13")
@@ -495,14 +522,14 @@ class EntityObservableUnitTest
 
         rxObs.onNext("4")
         rxObs1.onNext("4")
-        disp = pager.subscribe {
+        disp = pager.toObservable().subscribe {
             assertEquals(it[0].id, 1)
             assertEquals(it[0].value, "14")
         }
         disp.dispose()
 
         rxObs1.onNext("5")
-        disp = pager.subscribe {
+        disp = pager.toObservable().subscribe {
             assertEquals(it[0].id, 1)
             assertEquals(it[0].value, "15")
         }
@@ -534,7 +561,7 @@ class EntityObservableUnitTest
 
         val array = collection.createKeyArray(initial = listOf(TestEntity(1, "2"), TestEntity(2, "3")))
 
-        var disp = array.subscribe {
+        var disp = array.toObservable().subscribe {
             assertEquals(it.size, 2)
             assertEquals(it[0].id, 1)
             assertEquals(it[0].value, "13")
@@ -543,7 +570,7 @@ class EntityObservableUnitTest
 
         rxObs.onNext("4")
         rxObs1.onNext("4")
-        disp = array.subscribe {
+        disp = array.toObservable().subscribe {
             assertEquals(it[0].id, 1)
             assertEquals(it[0].value, "14")
         }
@@ -570,16 +597,16 @@ class EntityObservableUnitTest
 
         collection.commit(TestEntity(id = 1, value = "12"), UpdateOperation.Update)
 
-        var d = single.subscribe { assertEquals("12", it.value!!.value) }
+        var d = single.toObservable().subscribe { assertEquals("12", it.value!!.value) }
         d.dispose()
-        d = array.subscribe { assertEquals("12", it[0].value) }
+        d = array.toObservable().subscribe { assertEquals("12", it[0].value) }
         d.dispose()
 
         collection.commitByKey(1) { TestEntity(id = 1, value = "13") }
 
-        d = single.subscribe { assertEquals("13", it.value!!.value) }
+        d = single.toObservable().subscribe { assertEquals("13", it.value!!.value) }
         d.dispose()
-        d = array.subscribe { assertEquals("13", it[0].value) }
+        d = array.toObservable().subscribe { assertEquals("13", it[0].value) }
         d.dispose()
 
         collection.commitByKeys(listOf(1, 2)) { TestEntity(id = it.id, value = "${it.id}4") }

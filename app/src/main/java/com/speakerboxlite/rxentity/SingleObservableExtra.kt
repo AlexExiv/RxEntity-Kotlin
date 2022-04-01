@@ -4,7 +4,9 @@ import io.reactivex.rxjava3.core.Observable
 import io.reactivex.rxjava3.core.Observer
 import io.reactivex.rxjava3.core.Scheduler
 import io.reactivex.rxjava3.disposables.Disposable
+import io.reactivex.rxjava3.internal.disposables.DisposableHelper
 import io.reactivex.rxjava3.subjects.BehaviorSubject
+import java.util.concurrent.atomic.AtomicReference
 
 open class SingleObservableExtra<K: Comparable<K>, E: Entity<K>, Extra>(holder: EntityCollection<K, E>,
                                                                         val queue: Scheduler,
@@ -23,6 +25,8 @@ open class SingleObservableExtra<K: Comparable<K>, E: Entity<K>, Extra>(holder: 
         private set
 
     val entity: E? get() = rxPublish.value?.value
+
+    fun toObservable(): Observable<Optional<E?>> = rxPublish
 
     override fun update(source: String, entity: E)
     {
@@ -87,9 +91,13 @@ open class SingleObservableExtra<K: Comparable<K>, E: Entity<K>, Extra>(holder: 
         rxState.onNext(State.Deleted)
     }
 
-    override fun subscribeActual(observer: Observer<in Optional<E?>>?)
+    override fun subscribeActual(observer: Observer<in Optional<E?>>)
     {
-        rxPublish.subscribe(observer)
+        if (disposed)
+            throw IllegalStateException("Trying to subscribe to the EntityObservable that has been disposed already")
+
+        val lc = EntityObservableCoordinator(this, observer)
+        lc.subscribe(rxPublish)
     }
 
     open fun refresh(resetCache: Boolean = false, extra: Extra? = null)
@@ -105,6 +113,51 @@ open class SingleObservableExtra<K: Comparable<K>, E: Entity<K>, Extra>(holder: 
     protected fun publish(entity: E?)
     {
         rxPublish.onNext(Optional(entity))
+    }
+
+    internal class EntityObservableCoordinator<K: Comparable<K>, E: Entity<K>>(val parent: EntityObservable<*, *, *>,
+                                                                               val downstream: Observer<in Optional<E?>>):
+        AtomicReference<Disposable>(), Observer<Optional<E?>>, Disposable
+    {
+        @Volatile
+        var cancelled = false
+
+        override fun dispose()
+        {
+            if (!cancelled)
+            {
+                parent.dispose()
+                cancelled = true
+            }
+        }
+
+        override fun isDisposed(): Boolean = cancelled
+
+        override fun onSubscribe(d: Disposable)
+        {
+            DisposableHelper.setOnce(this, d)
+        }
+
+        override fun onNext(t: Optional<E?>)
+        {
+            downstream.onNext(t)
+        }
+
+        override fun onError(e: Throwable)
+        {
+
+        }
+
+        override fun onComplete()
+        {
+
+        }
+
+        fun subscribe(source: Observable<Optional<E?>>)
+        {
+            downstream.onSubscribe(this)
+            source.subscribe(this)
+        }
     }
 }
 

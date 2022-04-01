@@ -130,9 +130,9 @@ class RepositoryUnitTest
         val array = collection.createKeyArray(keys = listOf(1, 2))
         val single = collection.createSingle(key = 1)
 
-        var d = single.subscribe { Assert.assertEquals("test1", it.value!!.value) }
+        var d = single.toObservable().subscribe { Assert.assertEquals("test1", it.value!!.value) }
         d.dispose()
-        d = array.subscribe {
+        d = array.toObservable().subscribe {
             Assert.assertEquals("test1", it[0].value)
             Assert.assertEquals("test2", it[1].value)
         }
@@ -140,9 +140,9 @@ class RepositoryUnitTest
 
         repository.Update(entity = TestEntityBack(id = 1, value = "test1-new"))
 
-        d = single.subscribe { Assert.assertEquals("test1-new", it.value!!.value) }
+        d = single.toObservable().subscribe { Assert.assertEquals("test1-new", it.value!!.value) }
         d.dispose()
-        d = array.subscribe { Assert.assertEquals("test1-new", it[0].value) }
+        d = array.toObservable().subscribe { Assert.assertEquals("test1-new", it[0].value) }
         d.dispose()
 
         repository.Delete(key = 1)
@@ -155,7 +155,7 @@ class RepositoryUnitTest
         d.dispose()
 
         single.key = 2
-        d = single.subscribe { Assert.assertEquals("test2", it.value!!.value) }
+        d = single.toObservable().subscribe { Assert.assertEquals("test2", it.value!!.value) }
         d.dispose()
 
         single.key = 3
@@ -178,7 +178,7 @@ class RepositoryUnitTest
         val array = collection.createKeyArray(keys = listOf(1, 2))
         val single = collection.createSingle(key = 1)
 
-        var d = array.subscribe { Assert.assertEquals(2, it.size) }
+        var d = array.toObservable().subscribe { Assert.assertEquals(2, it.size) }
         d.dispose()
 
         repository.Clear()
@@ -232,9 +232,9 @@ class RepositoryUnitTest
         val single = collection.createSingle(key = 1)
         val array = collection.createKeyArray(keys = listOf(1, 2))
 
-        var d = single.subscribe { Assert.assertEquals("indirect2", it.value!!.indirectValue) }
+        var d = single.toObservable().subscribe { Assert.assertEquals("indirect2", it.value!!.indirectValue) }
         d.dispose()
-        d = array.subscribe {
+        d = array.toObservable().subscribe {
             Assert.assertEquals("indirect2", it[0].indirectValue)
             Assert.assertEquals("indirect1", it[1].indirectValue)
         }

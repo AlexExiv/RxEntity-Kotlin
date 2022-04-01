@@ -1,11 +1,15 @@
 package com.speakerboxlite.rxentity
 
 import io.reactivex.rxjava3.core.Observable
+import io.reactivex.rxjava3.core.Observer
 import io.reactivex.rxjava3.disposables.CompositeDisposable
+import io.reactivex.rxjava3.disposables.Disposable
+import io.reactivex.rxjava3.internal.disposables.DisposableHelper
 import io.reactivex.rxjava3.subjects.BehaviorSubject
 import io.reactivex.rxjava3.subjects.PublishSubject
 import java.lang.ref.WeakReference
 import java.util.*
+import java.util.concurrent.atomic.AtomicReference
 import java.util.concurrent.locks.ReentrantLock
 
 abstract class EntityObservable<K: Comparable<K>, E: Entity<K>, EL>(holder: EntityCollection<K, E>): Observable<EL>()
@@ -26,17 +30,29 @@ abstract class EntityObservable<K: Comparable<K>, E: Entity<K>, EL>(holder: Enti
     val lock = ReentrantLock()
     val collection = WeakReference<EntityCollection<K, E>>(holder)
 
+    @Volatile
+    var disposed = false
+
     init
     {
         holder.add(obs = this)
     }
 
-    fun dispose()
+    internal fun dispose()
     {
-        dispBag.dispose()
-        collection.get()?.remove(obs = this)
-        print("EntityObservable has been disposed. UUID - $uuid")
+        synchronized(this) {
+            if (disposed)
+                return
+
+            disposed = true
+            dispBag.dispose()
+            collection.get()?.remove(obs = this)
+        }
+
+        println("EntityObservable has been disposed. UUID - $uuid")
     }
+
+    fun share(count: Int) = publish().refCount(count)
 
     open fun update(source: String, entity: E)
     {
