@@ -24,14 +24,18 @@ abstract class EntityObservable<K: Comparable<K>, E: Entity<K>, EL>(holder: Enti
     val rxLoader = BehaviorSubject.createDefault(Loading.None)
     val rxError = PublishSubject.create<Throwable>()
 
-    var dispBag = CompositeDisposable()
+    protected var dispBag = CompositeDisposable()
 
     val uuid = UUID.randomUUID().toString()
-    val lock = ReentrantLock()
-    val collection = WeakReference<EntityCollection<K, E>>(holder)
+    protected val lock = ReentrantLock()
+    protected val collection = WeakReference<EntityCollection<K, E>>(holder)
 
     @Volatile
     var disposed = false
+        private set
+
+    @Volatile
+    var singleton = false
 
     init
     {
@@ -41,7 +45,7 @@ abstract class EntityObservable<K: Comparable<K>, E: Entity<K>, EL>(holder: Enti
     internal fun dispose()
     {
         synchronized(this) {
-            if (disposed)
+            if (disposed || singleton)
                 return
 
             disposed = true

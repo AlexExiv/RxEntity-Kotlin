@@ -94,7 +94,7 @@ open class SingleObservableExtra<K: Comparable<K>, E: Entity<K>, Extra>(holder: 
     override fun subscribeActual(observer: Observer<in Optional<E?>>)
     {
         if (disposed)
-            throw IllegalStateException("Trying to subscribe to the EntityObservable that has been disposed already")
+            throw IllegalStateException("Trying to subscribe to the EntityObservable that has been disposed already. Maybe you forgot to make it singleton?")
 
         val lc = EntityObservableCoordinator(this, observer)
         lc.subscribe(rxPublish)

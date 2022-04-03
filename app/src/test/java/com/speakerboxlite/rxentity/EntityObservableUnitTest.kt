@@ -152,7 +152,7 @@ class EntityObservableUnitTest
     {
         val collection = EntityObservableCollectionInt<TestEntity>(Schedulers.trampoline())
         val single0 = collection.createSingleExtra(key = 1, extra = ExtraParams(test = "1")) { Single.just(Optional(null)) }
-        val page0 = collection.createPaginatorExtra(extra = ExtraParams(test = "1")) { Single.just(listOf()) }
+        val page0 = collection.createPaginatorExtra(extra = ExtraParams(test = "1")) { Single.just(listOf()) }.apply { singleton = true }
 
         var getInside0 = false
         var getInside1 = false
@@ -167,7 +167,7 @@ class EntityObservableUnitTest
         disp1.dispose()
 
         assertEquals(true, single0.disposed)
-        assertEquals(true, page0.disposed)
+        assertEquals(false, page0.disposed)
 
         assertEquals(true, getInside0)
         assertEquals(true, getInside1)
