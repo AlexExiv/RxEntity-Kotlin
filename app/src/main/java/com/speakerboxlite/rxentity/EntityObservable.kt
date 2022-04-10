@@ -35,6 +35,9 @@ abstract class EntityObservable<K: Comparable<K>, E: Entity<K>, EL>(holder: Enti
         private set
 
     @Volatile
+    protected var subscribedCount = 0
+
+    @Volatile
     var singleton = false
 
     init
@@ -42,7 +45,7 @@ abstract class EntityObservable<K: Comparable<K>, E: Entity<K>, EL>(holder: Enti
         holder.add(obs = this)
     }
 
-    internal fun dispose()
+    fun dispose()
     {
         synchronized(this) {
             if (disposed || singleton)
@@ -96,5 +99,20 @@ abstract class EntityObservable<K: Comparable<K>, E: Entity<K>, EL>(holder: Enti
     open fun refreshData(resetCache: Boolean, data: Any?)
     {
 
+    }
+
+    protected fun incrSubscribedAndTest()
+    {
+        lock.lock()
+        try
+        {
+            subscribedCount++
+            if (subscribedCount > 1 && !singleton)
+                throw IllegalStateException("Trying to subscribe to the EntityObservable that already has subscriber. Only singletons can have more than 1 subscriber. Do this object singleton or use toObservable()")
+        }
+        finally
+        {
+            lock.unlock()
+        }
     }
 }

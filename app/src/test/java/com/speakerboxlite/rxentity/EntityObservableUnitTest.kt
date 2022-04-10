@@ -6,6 +6,8 @@ import io.reactivex.rxjava3.subjects.BehaviorSubject
 import org.junit.Test
 
 import org.junit.Assert.*
+import java.lang.Exception
+import java.lang.IllegalStateException
 
 data class TestEntity(val id: Int,
                       val value: String,
@@ -171,6 +173,41 @@ class EntityObservableUnitTest
 
         assertEquals(true, getInside0)
         assertEquals(true, getInside1)
+    }
+
+
+    @Test
+    fun testDoubleSubs()
+    {
+        val collection = EntityObservableCollectionInt<TestEntity>(Schedulers.trampoline())
+        val single0 = collection.createSingleExtra(key = 1, extra = ExtraParams(test = "1")) { Single.just(Optional(null)) }
+        val page0 = collection.createPaginatorExtra(extra = ExtraParams(test = "1")) { Single.just(listOf()) }.apply { singleton = true }
+
+        val disp0 = single0.subscribe {  }
+        var secondForb = false
+        try
+        {
+            val disp1 = single0.subscribe {  }
+        }
+        catch (e: Exception)
+        {
+            secondForb = true
+        }
+
+        assertEquals(true, secondForb)
+
+        val disp2 = page0.subscribe {  }
+        var secondAllowed = true
+        try
+        {
+            val disp3= page0.subscribe {  }
+        }
+        catch (e: IllegalStateException)
+        {
+            secondAllowed = false
+        }
+
+        assertEquals(true, secondAllowed)
     }
 
     @Test

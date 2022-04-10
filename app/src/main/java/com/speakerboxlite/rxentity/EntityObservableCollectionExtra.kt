@@ -350,9 +350,7 @@ open class EntityObservableCollectionExtra<K: Comparable<K>, E: Entity<K>, Colle
                 {
                     val forUpdate = mutableMapOf<K, E>()
                     entities.forEach {
-                        if (_sharedEntities[it._key] != null)
-                            forUpdate[it._key] = it
-
+                        forUpdate[it._key] = it
                         _sharedEntities[it._key] = it
                     }
 
@@ -382,9 +380,7 @@ open class EntityObservableCollectionExtra<K: Comparable<K>, E: Entity<K>, Colle
             val forUpdate = mutableMapOf<K , E>()
             val operationUpdate = mutableMapOf<K , UpdateOperation>()
             otherEntities.forEachIndexed { i, e ->
-                if (_sharedEntities[e._key] != null)
-                    forUpdate[e._key] = e
-
+                forUpdate[e._key] = e
                 operationUpdate[e._key] = otherOpers[i]
                 _sharedEntities[e._key] = e
             }
