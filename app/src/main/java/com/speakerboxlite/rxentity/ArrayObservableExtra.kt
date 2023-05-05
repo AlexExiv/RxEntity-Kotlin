@@ -113,6 +113,7 @@ open class ArrayObservableExtra<K: Comparable<K>, E: Entity<K>, Extra>(holder: E
                         {
                             UpdateOperation.Update -> setEntity(entity = e)
                             UpdateOperation.Delete -> remove(key = e._key)
+                            else -> {}
                         }
                     }
                 }
@@ -145,6 +146,7 @@ open class ArrayObservableExtra<K: Comparable<K>, E: Entity<K>, Extra>(holder: E
                         {
                             UpdateOperation.Update -> setEntity(entity = e)
                             UpdateOperation.Delete -> remove(key = e._key)
+                            else -> {}
                         }
                     }
                 }

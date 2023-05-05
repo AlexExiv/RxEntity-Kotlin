@@ -117,6 +117,8 @@ abstract class EntityCollection<K: Comparable<K>, E: Entity<K>>(val queue: Sched
     abstract fun createSingle(initial: E, refresh: Boolean = false): SingleObservable<K, E>
     abstract fun createKeyArray(initial: List<E>): ArrayKeyObservable<K, E>
 
+    operator fun get(key: K): E? = sharedEntities[key]
+
     companion object
     {
         fun <K: Comparable<K>, E: Entity<K>, CollectionExtra> create(queue: Scheduler, collectionExtra: CollectionExtra? = null) =

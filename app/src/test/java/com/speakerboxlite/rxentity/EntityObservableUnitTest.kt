@@ -656,4 +656,25 @@ class EntityObservableUnitTest
         }
         d.dispose()
     }
+
+    @Test
+    fun testCollectionGetElement()
+    {
+        val collection = EntityObservableCollectionExtraInt<TestEntity, ExtraCollectionParams>(Schedulers.trampoline(), collectionExtra = ExtraCollectionParams(test = "2"))
+
+        val page0 = collection.createPaginatorExtra(extra = ExtraParams(test = "1"), perPage = 2) {
+            Single.just(listOf(TestEntity(1, "1"), TestEntity(2, "2"), TestEntity(4, "4")))
+        }
+
+        val item1 = collection[1]
+        val item2 = collection[2]
+        assertNotNull(item1)
+        assertNotNull(item2)
+
+        assertEquals(item1!!.id, 1)
+        assertEquals(item1.value, "1")
+
+        assertEquals(item2!!.id, 2)
+        assertEquals(item2.value, "2")
+    }
 }
