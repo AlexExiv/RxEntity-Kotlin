@@ -1,14 +1,18 @@
 package com.speakerboxlite.rxentity
 
 import io.reactivex.rxjava3.core.Observable
+import io.reactivex.rxjava3.core.Observer
 import io.reactivex.rxjava3.disposables.CompositeDisposable
+import io.reactivex.rxjava3.disposables.Disposable
+import io.reactivex.rxjava3.internal.disposables.DisposableHelper
 import io.reactivex.rxjava3.subjects.BehaviorSubject
 import io.reactivex.rxjava3.subjects.PublishSubject
 import java.lang.ref.WeakReference
 import java.util.*
+import java.util.concurrent.atomic.AtomicReference
 import java.util.concurrent.locks.ReentrantLock
 
-abstract class EntityObservable<K: Comparable<K>, E: Entity<K>, EL>(holder: EntityCollection<K, E>): Observable<EL>()
+abstract class EntityObservable<K: Comparable<K>, E: Entity<K>, EL: Any>(holder: EntityCollection<K, E>): Observable<EL>()
 {
     enum class Loading
     {
@@ -20,11 +24,21 @@ abstract class EntityObservable<K: Comparable<K>, E: Entity<K>, EL>(holder: Enti
     val rxLoader = BehaviorSubject.createDefault(Loading.None)
     val rxError = PublishSubject.create<Throwable>()
 
-    var dispBag = CompositeDisposable()
+    protected var dispBag = CompositeDisposable()
 
     val uuid = UUID.randomUUID().toString()
-    val lock = ReentrantLock()
-    val collection = WeakReference<EntityCollection<K, E>>(holder)
+    protected val lock = ReentrantLock()
+    protected val collection = WeakReference<EntityCollection<K, E>>(holder)
+
+    @Volatile
+    var disposed = false
+        private set
+
+    @Volatile
+    protected var subscribedCount = 0
+
+    @Volatile
+    var singleton = false
 
     init
     {
@@ -33,10 +47,19 @@ abstract class EntityObservable<K: Comparable<K>, E: Entity<K>, EL>(holder: Enti
 
     fun dispose()
     {
-        dispBag.dispose()
-        collection.get()?.remove(obs = this)
-        print("EntityObservable has been disposed. UUID - $uuid")
+        synchronized(this) {
+            if (disposed || singleton)
+                return
+
+            disposed = true
+            dispBag.dispose()
+            collection.get()?.remove(obs = this)
+        }
+
+        println("EntityObservable has been disposed. UUID - $uuid")
     }
+
+    fun share(count: Int) = publish().refCount(count)
 
     open fun update(source: String, entity: E)
     {
@@ -76,5 +99,20 @@ abstract class EntityObservable<K: Comparable<K>, E: Entity<K>, EL>(holder: Enti
     open fun refreshData(resetCache: Boolean, data: Any?)
     {
 
+    }
+
+    protected fun incrSubscribedAndTest()
+    {
+        lock.lock()
+        try
+        {
+            subscribedCount++
+            if (subscribedCount > 1 && !singleton)
+                throw IllegalStateException("Trying to subscribe to the EntityObservable that already has subscriber. Only singletons can have more than 1 subscriber. Do this object singleton or use toObservable()")
+        }
+        finally
+        {
+            lock.unlock()
+        }
     }
 }

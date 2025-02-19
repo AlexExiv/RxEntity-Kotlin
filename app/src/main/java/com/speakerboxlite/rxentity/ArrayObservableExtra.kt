@@ -3,7 +3,10 @@ package com.speakerboxlite.rxentity
 import io.reactivex.rxjava3.core.Observable
 import io.reactivex.rxjava3.core.Observer
 import io.reactivex.rxjava3.core.Scheduler
+import io.reactivex.rxjava3.disposables.Disposable
+import io.reactivex.rxjava3.internal.disposables.DisposableHelper
 import io.reactivex.rxjava3.subjects.BehaviorSubject
+import java.util.concurrent.atomic.AtomicReference
 
 const val ARRAY_PER_PAGE = 999999
 
@@ -32,6 +35,8 @@ open class ArrayObservableExtra<K: Comparable<K>, E: Entity<K>, Extra>(holder: E
     protected var _entities: MutableList<E> = mutableListOf()
 
     var updatePolicy: UpdatePolicy = UpdatePolicy.Update
+
+    fun toObservable(): Observable<List<E>> = rxPublish
 
     operator fun get(i: Int): SingleObservable<K, E>
     {
@@ -108,6 +113,7 @@ open class ArrayObservableExtra<K: Comparable<K>, E: Entity<K>, Extra>(holder: E
                         {
                             UpdateOperation.Update -> setEntity(entity = e)
                             UpdateOperation.Delete -> remove(key = e._key)
+                            else -> {}
                         }
                     }
                 }
@@ -140,6 +146,7 @@ open class ArrayObservableExtra<K: Comparable<K>, E: Entity<K>, Extra>(holder: E
                         {
                             UpdateOperation.Update -> setEntity(entity = e)
                             UpdateOperation.Delete -> remove(key = e._key)
+                            else -> {}
                         }
                     }
                 }
@@ -266,7 +273,57 @@ open class ArrayObservableExtra<K: Comparable<K>, E: Entity<K>, Extra>(holder: E
 
     override fun subscribeActual(observer: Observer<in List<E>>)
     {
-        rxPublish.subscribe(observer)
+        if (disposed)
+            throw IllegalStateException("Trying to subscribe to the EntityObservable that has been disposed already. Maybe you forgot to make it singleton?")
+
+        incrSubscribedAndTest()
+        val lc = EntityObservableCoordinator(this, observer)
+        lc.subscribe(rxPublish)
+    }
+
+    internal class EntityObservableCoordinator<K: Comparable<K>, E: Entity<K>, EL: Any>(val parent: EntityObservable<K, E, EL>,
+                                                                                   val downstream: Observer<in List<E>>):
+        AtomicReference<Disposable>(), Observer<List<E>>, Disposable
+    {
+        @Volatile
+        var cancelled = false
+
+        override fun dispose()
+        {
+            if (!cancelled)
+            {
+                parent.dispose()
+                cancelled = true
+            }
+        }
+
+        override fun isDisposed(): Boolean = cancelled
+
+        override fun onSubscribe(d: Disposable)
+        {
+            DisposableHelper.setOnce(this, d)
+        }
+
+        override fun onNext(t: List<E>)
+        {
+            downstream.onNext(t)
+        }
+
+        override fun onError(e: Throwable)
+        {
+
+        }
+
+        override fun onComplete()
+        {
+
+        }
+
+        fun subscribe(source: Observable<List<E>>)
+        {
+            downstream.onSubscribe(this)
+            source.subscribe(this)
+        }
     }
 }
 
@@ -281,5 +338,5 @@ typealias ArrayObservableLong<Entity> = ArrayObservable<Long, Entity>
 typealias ArrayObservableExtraString<Entity, Extra> = ArrayObservableExtra<String, Entity, Extra>
 typealias ArrayObservableString<Entity> = ArrayObservable<String, Entity>
 
-fun <K: Comparable<K>, E: Entity<K>, Extra> Observable<Extra>.refresh(to: ArrayObservableExtra<K, E, Extra>, resetCache: Boolean = false)
+fun <K: Comparable<K>, E: Entity<K>, Extra: Any> Observable<Extra>.refresh(to: ArrayObservableExtra<K, E, Extra>, resetCache: Boolean = false)
         = subscribe { to._refresh(resetCache = resetCache, extra = it) }

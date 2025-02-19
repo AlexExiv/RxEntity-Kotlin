@@ -117,5 +117,5 @@ typealias ArrayKeyObservableLong<Entity> = ArrayKeyObservable<Long, Entity>
 typealias ArrayKeyObservableExtraString<Entity, Extra> = ArrayKeyObservableExtra<String, Entity, Extra>
 typealias ArrayKeyObservableString<Entity> = ArrayKeyObservable<String, Entity>
 
-fun <K: Comparable<K>, E: Entity<K>, Extra> Observable<Extra>.refresh(to: ArrayKeyObservableExtra<K, E, Extra>, resetCache: Boolean = false)
+fun <K: Comparable<K>, E: Entity<K>, Extra: Any> Observable<Extra>.refresh(to: ArrayKeyObservableExtra<K, E, Extra>, resetCache: Boolean = false)
         = subscribe { to._refresh(resetCache = resetCache, extra = it) }
