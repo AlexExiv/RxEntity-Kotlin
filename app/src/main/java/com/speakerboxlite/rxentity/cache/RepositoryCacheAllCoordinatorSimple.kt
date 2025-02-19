@@ -15,7 +15,8 @@ class RepositoryCacheAllCoordinatorSimple<K: Comparable<K>, EB: EntityBack<K>>(
     val queue: Scheduler = Schedulers.io(),
     val source: RepositoryCacheAllSourceInterface<K, EB>,
     val storage: RepositoryCacheAllStorageInterface<K, EB>,
-    val updateDelay: Int = 1) : EntityRepository<K, EB>(), EntityAllRepositoryInterface<K, EB>
+    val updateDelay: Int = 1,
+    val singleUpdate: Boolean = false) : EntityRepository<K, EB>(), EntityAllRepositoryInterface<K, EB>
 {
     enum class State
     {
@@ -67,6 +68,13 @@ class RepositoryCacheAllCoordinatorSimple<K: Comparable<K>, EB: EntityBack<K>>(
                 update()
                 Single.just(it)
             }
+
+    fun resetUpdate()
+    {
+        lock.lock()
+        updateState = State.Wait
+        lock.unlock()
+    }
 
     private fun RxUpdate() : Single<List<EB>> =
         source
@@ -122,7 +130,7 @@ class RepositoryCacheAllCoordinatorSimple<K: Comparable<K>, EB: EntityBack<K>>(
                 .observeOn(queue)
                 .subscribe({}, {}, {
                     lock.lock()
-                    updateState = State.Updated
+                    updateState = if (singleUpdate) State.Updated else State.Wait
                     lock.unlock()
                 })
 
