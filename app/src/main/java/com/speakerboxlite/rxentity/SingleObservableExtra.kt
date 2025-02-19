@@ -167,7 +167,7 @@ typealias SingleObservableInt<Entity> = SingleObservable<Int, Entity>
 typealias SingleObservableLong<Entity> = SingleObservable<Long, Entity>
 typealias SingleObservableString<Entity> = SingleObservable<String, Entity>
 
-fun <K: Comparable<K>, E: Entity<K>, Extra> Observable<Extra>.refresh(to: SingleObservableExtra<K, E, Extra>, resetCache: Boolean = false): Disposable
+fun <K: Comparable<K>, E: Entity<K>, Extra: Any> Observable<Extra>.refresh(to: SingleObservableExtra<K, E, Extra>, resetCache: Boolean = false): Disposable
 {
     return subscribe { to._refresh(resetCache = resetCache, extra = it) }
 }

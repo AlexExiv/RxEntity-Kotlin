@@ -9,7 +9,7 @@ import java.lang.ref.WeakReference
 
 typealias CombineMethod<E> = BiFunction<E, Array<*>, Pair<E, Boolean>>
 
-data class CombineSource<E>(val sources: List<Observable<*>>,
+data class CombineSource<E: Any>(val sources: List<Observable<*>>,
                             val combine: CombineMethod<E>)
 
 open class EntityObservableCollectionExtra<K: Comparable<K>, E: Entity<K>, CollectionExtra>(queue: Scheduler, collectionExtra: CollectionExtra? = null): EntityCollection<K, E>(queue)
@@ -123,37 +123,37 @@ open class EntityObservableCollectionExtra<K: Comparable<K>, E: Entity<K>, Colle
         return PaginatorObservableCollectionExtra(holder = this, queue = queue, extra = extra, collectionExtra = collectionExtra, perPage = perPage, start = start, fetch = fetch)
     }
 
-    fun <T> combineLatest(source: Observable<T>, merge: (E, T) -> Pair<E, Boolean>)
+    fun <T: Any> combineLatest(source: Observable<T>, merge: (E, T) -> Pair<E, Boolean>)
     {
         combineSources.add(CombineSource(listOf(source), BiFunction { e, a -> merge(e, a[0] as T) }))
         buildCombines()
     }
 
-    fun <T0, T1> combineLatest(source0: Observable<T0>, source1: Observable<T1>, merge: (E, T0, T1) -> Pair<E, Boolean>)
+    fun <T0: Any, T1: Any> combineLatest(source0: Observable<T0>, source1: Observable<T1>, merge: (E, T0, T1) -> Pair<E, Boolean>)
     {
         combineSources.add(CombineSource(listOf(source0, source1), BiFunction { e, a -> merge(e, a[0] as T0, a[1] as T1) }))
         buildCombines()
     }
 
-    fun <T0, T1, T2> combineLatest(source0: Observable<T0>, source1: Observable<T1>, source2: Observable<T2>, merge: (E, T0, T1, T2) -> Pair<E, Boolean>)
+    fun <T0: Any, T1: Any, T2: Any> combineLatest(source0: Observable<T0>, source1: Observable<T1>, source2: Observable<T2>, merge: (E, T0, T1, T2) -> Pair<E, Boolean>)
     {
         combineSources.add(CombineSource(listOf(source0, source1, source2), BiFunction { e, a -> merge(e, a[0] as T0, a[1] as T1, a[2] as T2) }))
         buildCombines()
     }
 
-    fun <T0, T1, T2, T3> combineLatest(source0: Observable<T0>, source1: Observable<T1>, source2: Observable<T2>, source3: Observable<T3>, merge: (E, T0, T1, T2, T3) -> Pair<E, Boolean>)
+    fun <T0: Any, T1: Any, T2: Any, T3: Any> combineLatest(source0: Observable<T0>, source1: Observable<T1>, source2: Observable<T2>, source3: Observable<T3>, merge: (E, T0, T1, T2, T3) -> Pair<E, Boolean>)
     {
         combineSources.add(CombineSource(listOf(source0, source1, source2, source3), BiFunction { e, a -> merge(e, a[0] as T0, a[1] as T1, a[2] as T2, a[3] as T3) }))
         buildCombines()
     }
 
-    fun <T0, T1, T2, T3, T4> combineLatest(source0: Observable<T0>, source1: Observable<T1>, source2: Observable<T2>, source3: Observable<T3>, source4: Observable<T4>, merge: (E, T0, T1, T2, T3, T4) -> Pair<E, Boolean>)
+    fun <T0: Any, T1: Any, T2: Any, T3: Any, T4: Any> combineLatest(source0: Observable<T0>, source1: Observable<T1>, source2: Observable<T2>, source3: Observable<T3>, source4: Observable<T4>, merge: (E, T0, T1, T2, T3, T4) -> Pair<E, Boolean>)
     {
         combineSources.add(CombineSource(listOf(source0, source1, source2, source3, source4), BiFunction { e, a -> merge(e, a[0] as T0, a[1] as T1, a[2] as T2, a[3] as T3, a[4] as T4) }))
         buildCombines()
     }
 
-    fun <T0, T1, T2, T3, T4, T5> combineLatest(source0: Observable<T0>, source1: Observable<T1>, source2: Observable<T2>, source3: Observable<T3>, source4: Observable<T4>, source5: Observable<T5>, merge: (E, T0, T1, T2, T3, T4, T5) -> Pair<E, Boolean>)
+    fun <T0: Any, T1: Any, T2: Any, T3: Any, T4: Any, T5: Any> combineLatest(source0: Observable<T0>, source1: Observable<T1>, source2: Observable<T2>, source3: Observable<T3>, source4: Observable<T4>, source5: Observable<T5>, merge: (E, T0, T1, T2, T3, T4, T5) -> Pair<E, Boolean>)
     {
         combineSources.add(CombineSource(listOf(source0, source1, source2, source3, source4, source5), BiFunction { e, a -> merge(e, a[0] as T0, a[1] as T1, a[2] as T2, a[3] as T3, a[4] as T4, a[5] as T5) }))
         buildCombines()
@@ -302,11 +302,11 @@ open class EntityObservableCollectionExtra<K: Comparable<K>, E: Entity<K>, Colle
                         .observeOn(queue)
                         .flatMap {
                             if (it.value == null)
-                                Single.just(null)
+                                Single.just(Optional(null))
                             else
-                                RxRequestForCombine(source = "", entity = it.value, updateChilds = false).map { it }
+                                RxRequestForCombine(source = "", entity = it.value, updateChilds = false).map { Optional(it) }
                         }
-                        .subscribe({  if (it != null) commit(entity = it, operation = operation) }, { })
+                        .subscribe({  if (it.value != null) commit(entity = it.value, operation = operation) }, { })
 
                     dispBag.add(d)
                 }
@@ -579,5 +579,5 @@ typealias EntityObservableCollectionLong<Entity> = EntityObservableCollection<Lo
 typealias EntityObservableCollectionExtraString<Entity, CollectionExtra> = EntityObservableCollectionExtra<String, Entity, CollectionExtra>
 typealias EntityObservableCollectionString<Entity> = EntityObservableCollection<String, Entity>
 
-fun <K: Comparable<K>, E: Entity<K>, CollectionExtra> Observable<CollectionExtra>.refresh(to: EntityObservableCollectionExtra<K, E, CollectionExtra>, resetCache: Boolean = false)
+fun <K: Comparable<K>, E: Entity<K>, CollectionExtra: Any> Observable<CollectionExtra>.refresh(to: EntityObservableCollectionExtra<K, E, CollectionExtra>, resetCache: Boolean = false)
         = subscribe { to._refresh(resetCache = resetCache, collectionExtra = it) }

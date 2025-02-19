@@ -2,15 +2,14 @@ apply plugin: 'com.android.library'
 
 apply plugin: 'kotlin-android'
 
-apply plugin: 'kotlin-android-extensions'
-
 android {
-    compileSdkVersion 33
+    namespace 'com.speakerboxlite.rxentity'
+    compileSdkVersion 34
 
     defaultConfig {
-        minSdkVersion 16
-        versionCode 8
-        versionName "0.4.10"
+        minSdkVersion 21
+        versionCode 9
+        versionName "0.4.11"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
     }
     buildTypes {
@@ -19,14 +18,24 @@ android {
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
     }
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
+    }
+    kotlinOptions {
+        jvmTarget = '1.8'
+    }
+    testOptions {
+        unitTests.returnDefaultValues = true
+    }
 }
 
 dependencies {
     implementation fileTree(dir: 'libs', include: ['*.jar'])
     //implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk7:$kotlin_version"
     implementation "org.jetbrains.kotlin:kotlin-reflect:$kotlin_version"
-    implementation 'androidx.core:core-ktx:1.10.0'
-    implementation 'io.reactivex.rxjava3:rxjava:3.0.13'
+    implementation 'androidx.core:core-ktx:1.13.1'
+    implementation 'io.reactivex.rxjava3:rxjava:3.1.6'
 
     testImplementation 'junit:junit:4.13'
 

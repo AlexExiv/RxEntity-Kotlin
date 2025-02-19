@@ -12,7 +12,7 @@ import java.util.*
 import java.util.concurrent.atomic.AtomicReference
 import java.util.concurrent.locks.ReentrantLock
 
-abstract class EntityObservable<K: Comparable<K>, E: Entity<K>, EL>(holder: EntityCollection<K, E>): Observable<EL>()
+abstract class EntityObservable<K: Comparable<K>, E: Entity<K>, EL: Any>(holder: EntityCollection<K, E>): Observable<EL>()
 {
     enum class Loading
     {

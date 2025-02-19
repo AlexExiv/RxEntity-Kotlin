@@ -281,7 +281,7 @@ open class ArrayObservableExtra<K: Comparable<K>, E: Entity<K>, Extra>(holder: E
         lc.subscribe(rxPublish)
     }
 
-    internal class EntityObservableCoordinator<K: Comparable<K>, E: Entity<K>, EL>(val parent: EntityObservable<K, E, EL>,
+    internal class EntityObservableCoordinator<K: Comparable<K>, E: Entity<K>, EL: Any>(val parent: EntityObservable<K, E, EL>,
                                                                                    val downstream: Observer<in List<E>>):
         AtomicReference<Disposable>(), Observer<List<E>>, Disposable
     {
@@ -338,5 +338,5 @@ typealias ArrayObservableLong<Entity> = ArrayObservable<Long, Entity>
 typealias ArrayObservableExtraString<Entity, Extra> = ArrayObservableExtra<String, Entity, Extra>
 typealias ArrayObservableString<Entity> = ArrayObservable<String, Entity>
 
-fun <K: Comparable<K>, E: Entity<K>, Extra> Observable<Extra>.refresh(to: ArrayObservableExtra<K, E, Extra>, resetCache: Boolean = false)
+fun <K: Comparable<K>, E: Entity<K>, Extra: Any> Observable<Extra>.refresh(to: ArrayObservableExtra<K, E, Extra>, resetCache: Boolean = false)
         = subscribe { to._refresh(resetCache = resetCache, extra = it) }
