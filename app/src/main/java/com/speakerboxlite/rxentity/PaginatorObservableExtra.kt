@@ -27,7 +27,7 @@ open class PaginatorObservableExtra<K: Comparable<K>, E: Entity<K>, Extra>(holde
 
             val newEntities = _entities.toMutableList()
             newEntities.appendOrReplaceEntity(entities)
-            page = if (entities.size == perPage) page + 1 else PAGINATOR_END
+            page = if (entities.size >= perPage) page + 1 else PAGINATOR_END
             return newEntities
         }
         finally

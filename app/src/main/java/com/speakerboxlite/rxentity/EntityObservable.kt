@@ -56,7 +56,7 @@ abstract class EntityObservable<K: Comparable<K>, E: Entity<K>, EL: Any>(holder:
             collection.get()?.remove(obs = this)
         }
 
-        println("EntityObservable has been disposed. UUID - $uuid")
+        EntityCollectionConfig.log("EntityObservable has been disposed. UUID - $uuid")
     }
 
     fun share(count: Int) = publish().refCount(count)

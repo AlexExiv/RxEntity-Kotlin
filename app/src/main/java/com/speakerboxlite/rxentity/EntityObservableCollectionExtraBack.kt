@@ -97,10 +97,10 @@ class EntityObservableCollectionExtraBack<K: Comparable<K>, E: Entity<K>, EB: En
         {
             if (ebConstructor == null)
             {
-                println("START SEARCH CONSTRUCTOR: ${clazz.constructors.size}")
+                EntityCollectionConfig.log("START SEARCH CONSTRUCTOR: ${clazz.constructors.size}")
                 for (f in clazz.constructors)
                 {
-                    println("PARAMETERS COUNT: ${f.parameters.size}; TYPES: ${f.parameters.map { it.type.classifier?.toString() }}")
+                    EntityCollectionConfig.log("PARAMETERS COUNT: ${f.parameters.size}; TYPES: ${f.parameters.map { it.type.classifier?.toString() }}")
                     if (f.parameters.size == 1 && (f.parameters[0].type.classifier as? KClass<*>) == clazzEB)
                     {
                         ebConstructor = f
