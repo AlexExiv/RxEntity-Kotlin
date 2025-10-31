@@ -49,7 +49,7 @@ class PaginatorObservableCollectionExtra<K: Comparable<K>, E: Entity<K>, Extra, 
         val weak = WeakReference(this)
         val disp = rxPage
                 .filter { it.page >= 0 }
-                .doOnNext { weak.get()?.updateLoading(if (it.first) Loading.FirstLoading else Loading.Loading) }
+                .doOnNext { weak.get()?.updateLoading(if (it.first) Loading.FirstLoading else Loading.Loading, null) }
                 .switchMap {
                     fetch(it)
                         .toObservable()

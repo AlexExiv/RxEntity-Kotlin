@@ -117,7 +117,12 @@ abstract class EntityObservable<K: Comparable<K>, E: Entity<K>, EL: Any>(holder:
         }
     }
 
-    internal fun updateLoading(loading: Loading, error: Throwable? = null)
+    internal fun updateLoading(loading: Loading)
+    {
+        rxLoader.onNext(loading)
+    }
+
+    internal fun updateLoading(loading: Loading, error: Throwable?)
     {
         rxLoader.onNext(loading)
         if (error != null)

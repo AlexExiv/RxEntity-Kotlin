@@ -74,7 +74,7 @@ class SingleObservableCollectionExtra<K: Comparable<K>, E: Entity<K>, Extra, Col
         val weak = WeakReference(this)
         val disp = _rxRefresh
             .doOnNext {
-                weak.get()?.updateLoading(if (it.first) Loading.FirstLoading else Loading.Loading)
+                weak.get()?.updateLoading(if (it.first) Loading.FirstLoading else Loading.Loading, null)
                 if (it.first)
                     weak.get()?.rxState?.onNext(State.Initializing)
             }
