@@ -49,18 +49,17 @@ class PaginatorObservableCollectionExtra<K: Comparable<K>, E: Entity<K>, Extra, 
         val weak = WeakReference(this)
         val disp = rxPage
                 .filter { it.page >= 0 }
-                .doOnNext { weak.get()?.rxLoader?.onNext(if (it.first) Loading.FirstLoading else Loading.Loading) }
+                .doOnNext { weak.get()?.updateLoading(if (it.first) Loading.FirstLoading else Loading.Loading) }
                 .switchMap {
                     fetch(it)
                         .toObservable()
                         .onErrorReturn {
-                            weak.get()?.rxError?.onNext(it)
-                            weak.get()?.rxLoader?.onNext(Loading.None)
+                            weak.get()?.updateLoading(Loading.None, it)
                             return@onErrorReturn listOf<E>()
                         }
                 }
                 .observeOn(queue)
-                .doOnNext { weak.get()?.rxLoader?.onNext(Loading.None) }
+                .doOnNext { weak.get()?.updateLoading(Loading.None) }
                 .flatMap { weak.get()?.collection?.get()?.RxRequestForCombine(source = weak.get()?.uuid ?: "", entities = it)?.toObservable() ?: just(listOf()) }
                 .subscribe { weak.get()?.setEntities(weak.get()?.append(it) ?: listOf()) }
 

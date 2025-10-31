@@ -45,27 +45,26 @@ class ArrayKeyObservableCollectionExtra<K: Comparable<K>, E: Entity<K>, Extra, C
     {
         val weak = WeakReference(this)
         val disp = rxKeys
-            .filter { it.keys.size > 0 }
-            .doOnNext { weak.get()?.rxLoader?.onNext(if (it.first) Loading.FirstLoading else Loading.Loading) }
+            .filter { it.keys.isNotEmpty() }
+            .doOnNext { weak.get()?.updateLoading(if (it.first) Loading.FirstLoading else Loading.Loading, null) }
             .observeOn(queue)
             .switchMap {
                 (weak.get()?.RxFetchElements(params = it, fetch = fetch) ?: Single.just(listOf()))
                     .toObservable()
                     .onErrorReturn {
-                        weak.get()?.rxError?.onNext(it)
-                        weak.get()?.rxLoader?.onNext(Loading.None)
+                        weak.get()?.updateLoading(Loading.None, it)
                         listOf()
                     }
             }
             .observeOn(queue)
-            .doOnNext { weak.get()?.rxLoader?.onNext(Loading.None) }
+            .doOnNext { weak.get()?.updateLoading(Loading.None) }
             .flatMap { weak.get()?.collection?.get()?.RxRequestForCombine(source = weak.get()?.uuid ?: "", entities = it)?.toObservable() ?: just(listOf()) }
             .subscribe { v -> weak.get()?.setEntities(entities = v) }
 
         val keysDisp = rxKeys
             .filter { it.keys.isEmpty() }
             .observeOn(queue)
-            .doOnNext { weak.get()?.rxLoader?.onNext(Loading.None) }
+            .doOnNext { weak.get()?.updateLoading(Loading.None) }
             .subscribe { weak.get()?.setEntities(entities = listOf()) }
 
         dispBag.add(disp)

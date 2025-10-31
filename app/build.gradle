@@ -9,7 +9,7 @@ android {
     defaultConfig {
         minSdkVersion 21
         versionCode 9
-        versionName "0.4.11"
+        versionName "0.4.13"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
     }
     buildTypes {

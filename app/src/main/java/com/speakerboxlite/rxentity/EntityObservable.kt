@@ -23,6 +23,7 @@ abstract class EntityObservable<K: Comparable<K>, E: Entity<K>, EL: Any>(holder:
 
     val rxLoader = BehaviorSubject.createDefault(Loading.None)
     val rxError = PublishSubject.create<Throwable>()
+    val rxErrorState = BehaviorSubject.createDefault<Optional<Throwable>>(Optional(null))
 
     protected var dispBag = CompositeDisposable()
 
@@ -114,5 +115,13 @@ abstract class EntityObservable<K: Comparable<K>, E: Entity<K>, EL: Any>(holder:
         {
             lock.unlock()
         }
+    }
+
+    internal fun updateLoading(loading: Loading, error: Throwable? = null)
+    {
+        rxLoader.onNext(loading)
+        if (error != null)
+            rxError.onNext(error)
+        rxErrorState.onNext(Optional(error))
     }
 }

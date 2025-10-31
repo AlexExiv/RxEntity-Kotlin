@@ -74,7 +74,7 @@ class SingleObservableCollectionExtra<K: Comparable<K>, E: Entity<K>, Extra, Col
         val weak = WeakReference(this)
         val disp = _rxRefresh
             .doOnNext {
-                weak.get()?.rxLoader?.onNext(if (it.first) Loading.FirstLoading else Loading.Loading)
+                weak.get()?.updateLoading(if (it.first) Loading.FirstLoading else Loading.Loading)
                 if (it.first)
                     weak.get()?.rxState?.onNext(State.Initializing)
             }
@@ -90,14 +90,14 @@ class SingleObservableCollectionExtra<K: Comparable<K>, E: Entity<K>, Extra, Col
                         if (t is EntityFetchExceptionInterface)
                             weak.get()?.rxState?.onNext(State.NotFound)
                         else
-                            weak.get()?.rxError?.onNext(t)
+                            weak.get()?.updateLoading(Loading.None, t)
                         just(Optional(null))
                     }
             }
             .observeOn(queue)
             .doOnNext {
                 //weak.get()?.setSuperKey(it.value?._key)
-                weak.get()?.rxLoader?.onNext(Loading.None)
+                weak.get()?.updateLoading(Loading.None)
                 weak.get()?.rxState?.onNext(if (it.exist()) State.Ready else State.NotFound)
             }
             .flatMap {
