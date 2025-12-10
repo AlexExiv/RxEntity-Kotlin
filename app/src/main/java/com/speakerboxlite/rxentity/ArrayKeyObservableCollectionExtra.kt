@@ -43,6 +43,8 @@ class ArrayKeyObservableCollectionExtra<K: Comparable<K>, E: Entity<K>, Extra, C
 
     init
     {
+        updateLoading(if (start) Loading.FirstLoading else Loading.None)
+
         val weak = WeakReference(this)
         val disp = rxKeys
             .filter { it.keys.isNotEmpty() }

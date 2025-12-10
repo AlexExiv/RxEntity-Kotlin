@@ -46,6 +46,8 @@ class PaginatorObservableCollectionExtra<K: Comparable<K>, E: Entity<K>, Extra, 
 
     init
     {
+        updateLoading(if (start) Loading.FirstLoading else Loading.None)
+
         val weak = WeakReference(this)
         val disp = rxPage
                 .filter { it.page >= 0 }
